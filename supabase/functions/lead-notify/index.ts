@@ -1,28 +1,39 @@
 // Supabase Edge Function: lead-notify
 //
-// Called by a Supabase Database Webhook whenever a new row is inserted
-// into public.leads. Sends a formatted message with inline status
-// buttons to the Telegram "Website Requests" topic, then stores the
-// Telegram message_id back on the lead row so tg-webhook can edit it
-// later when the status changes.
+// Called by the public.leads INSERT trigger (`leads_notify_telegram`),
+// which fetches a shared secret from Supabase Vault and passes it as
+// `X-Lead-Notify-Secret`. This function rejects anything without that
+// header, formats the new lead, and posts it to the Telegram
+// "Website Requests" topic with four inline status buttons. Finally,
+// it stores the Telegram message_id back on the lead row so
+// `tg-webhook` can later edit that exact message when status changes.
 //
-// Required environment secrets (set in dashboard → Settings → Edge Functions → Secrets):
+// IMPORTANT: deploy with `verify_jwt = false`. Auth is the shared
+// secret header, not a Supabase JWT.
+//
+// Required environment secrets (set in Project Settings → Edge Functions → Secrets):
 //   TG_BOT_TOKEN              — from @BotFather
 //   TG_CHAT_ID                — e.g. -1003948492906
 //   TG_THREAD_ID              — e.g. 98 (Website Requests topic id)
-//   SUPABASE_URL              — auto-provided by Supabase
-//   SUPABASE_SERVICE_ROLE_KEY — auto-provided by Supabase
+//   LEAD_NOTIFY_SECRET        — same value as `vault.create_secret(..., 'lead_notify_secret', ...)`
+//   SUPABASE_URL              — auto-provided
+//   SUPABASE_SERVICE_ROLE_KEY — auto-provided
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { formatLead, buildKeyboard } from "../_shared/format.ts";
 
-const TG_BOT_TOKEN = Deno.env.get("TG_BOT_TOKEN")!;
-const TG_CHAT_ID   = Deno.env.get("TG_CHAT_ID")!;
-const TG_THREAD_ID = Deno.env.get("TG_THREAD_ID")!;
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const TG_BOT_TOKEN        = Deno.env.get("TG_BOT_TOKEN")!;
+const TG_CHAT_ID          = Deno.env.get("TG_CHAT_ID")!;
+const TG_THREAD_ID        = Deno.env.get("TG_THREAD_ID")!;
+const LEAD_NOTIFY_SECRET  = Deno.env.get("LEAD_NOTIFY_SECRET")!;
+const SUPABASE_URL        = Deno.env.get("SUPABASE_URL")!;
+const SERVICE_ROLE        = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 Deno.serve(async (req) => {
+  if (req.headers.get("x-lead-notify-secret") !== LEAD_NOTIFY_SECRET) {
+    return new Response("unauthorized", { status: 401 });
+  }
+
   try {
     const body = await req.json();
     if (body?.type !== "INSERT" || !body?.record) {
