@@ -2,11 +2,13 @@
 //
 // Two modes:
 //   "mailto"   — opens the visitor's email client with a prefilled message.
-//   "supabase" — saves leads to a Supabase "leads" table.
+//   "supabase" — sends leads to the `submit-lead` Edge Function, which
+//                validates, rate-limits per IP, and writes to the "leads"
+//                table with the service role.
 //
-// The publishable key below is safe to expose on the client side.
-// Database is protected by Row Level Security policies — anon role can
-// only INSERT into the "leads" table, nothing else.
+// The publishable key below is safe to expose on the client side. It is
+// only used by the temporary direct-insert fallback in form.js; once
+// migration 0005 revokes anon INSERT, that key can't write anything.
 
 window.HAPPY_MAX_CONFIG = {
   backend: "supabase",

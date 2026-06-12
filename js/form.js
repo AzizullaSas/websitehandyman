@@ -1,7 +1,11 @@
 // Happy Max Handyman — contact form handler.
 // Backend is picked from config.js:
 //   - "mailto"   → opens the visitor's mail client with a prefilled email.
-//   - "supabase" → POSTs into a Supabase "leads" table (lazy-loaded SDK).
+//   - "supabase" → POSTs to the `submit-lead` Edge Function, which
+//     validates, rate-limits per IP, and inserts into the "leads" table.
+//     Falls back to a direct REST insert for the deploy window where the
+//     function isn't live yet (the fallback dies once anon INSERT is
+//     revoked by migration 0005 — by then the function is the only path).
 
 (function () {
   const CONFIG = window.HAPPY_MAX_CONFIG || {};
@@ -10,6 +14,9 @@
 
   const status = document.getElementById("lf-status");
   const submit = document.getElementById("lf-submit");
+
+  const GENERIC_ERROR =
+    "Couldn't send right now — please call (808) 201-1311 or email happymaxhandyman@gmail.com.";
 
   const showStatus = (msg, kind) => {
     if (!status) return;
@@ -25,6 +32,13 @@
   };
 
   const sanitize = (v) => (typeof v === "string" ? v.trim() : "");
+
+  // An error whose message is safe to show to the visitor as-is.
+  const userError = (msg) => {
+    const e = new Error(msg);
+    e.userMessage = msg;
+    return e;
+  };
 
   const validate = (data) => {
     const errors = {};
@@ -76,27 +90,70 @@
       setTimeout(resolve, 400);
     });
 
-  let supabaseClient = null;
+  // Legacy path: direct REST insert with the publishable key. Only works
+  // while the anon role still has INSERT on "leads" (pre-migration-0005).
+  const insertDirect = async (sb, data) => {
+    const res = await fetch(`${sb.url}/rest/v1/leads`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: sb.anonKey,
+        Authorization: `Bearer ${sb.anonKey}`,
+        Prefer: "return=minimal"
+      },
+      body: JSON.stringify([{
+        name: data.name,
+        phone: data.phone,
+        email: data.email || null,
+        tv_size: data.tv_size || null,
+        wall_type: data.wall_type || null,
+        message: data.message || null,
+        source: "website",
+        user_agent: navigator.userAgent
+      }])
+    });
+    if (!res.ok) throw new Error(`REST insert failed: ${res.status}`);
+  };
+
   const submitSupabase = async (data) => {
-    if (!CONFIG.supabase || !CONFIG.supabase.url || !CONFIG.supabase.anonKey) {
-      throw new Error("Supabase is not configured. Set url + anonKey in config.js.");
+    const sb = CONFIG.supabase || {};
+    if (!sb.url) throw new Error("Supabase is not configured. Set url in config.js.");
+
+    let res = null;
+    try {
+      res = await fetch(`${sb.url}/functions/v1/submit-lead`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: data.name,
+          phone: data.phone,
+          email: data.email,
+          tv_size: data.tv_size,
+          wall_type: data.wall_type,
+          message: data.message,
+          website: "" // honeypot field, always empty for real visitors
+        })
+      });
+    } catch (_) {
+      res = null; // network error — try the legacy path below
     }
-    if (!supabaseClient) {
-      const mod = await import("https://esm.sh/@supabase/supabase-js@2");
-      supabaseClient = mod.createClient(CONFIG.supabase.url, CONFIG.supabase.anonKey);
+
+    if (res && res.ok) return;
+
+    // Validation / rate-limit responses carry a visitor-friendly message.
+    if (res && (res.status === 400 || res.status === 429)) {
+      const body = await res.json().catch(() => null);
+      throw userError((body && body.error) || GENERIC_ERROR);
     }
-    const payload = {
-      name: data.name,
-      phone: data.phone,
-      email: data.email || null,
-      tv_size: data.tv_size || null,
-      wall_type: data.wall_type || null,
-      message: data.message || null,
-      source: "website",
-      user_agent: navigator.userAgent
-    };
-    const { error } = await supabaseClient.from("leads").insert([payload]);
-    if (error) throw error;
+
+    // Function not deployed yet (404) or gateway rejected the call (401):
+    // fall back to the direct insert while that path still exists.
+    if (sb.anonKey && (!res || res.status === 404 || res.status === 401)) {
+      await insertDirect(sb, data);
+      return;
+    }
+
+    throw new Error(`submit-lead failed: ${res ? res.status : "network"}`);
   };
 
   form.addEventListener("submit", async (e) => {
@@ -145,10 +202,7 @@
       }
     } catch (err) {
       console.error("[leadForm]", err);
-      showStatus(
-        "Couldn't send right now — please call (808) 201-1311 or email happymaxhandyman@gmail.com.",
-        "error"
-      );
+      showStatus(err.userMessage || GENERIC_ERROR, "error");
     } finally {
       setLoading(false);
     }

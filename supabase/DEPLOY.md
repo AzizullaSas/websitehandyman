@@ -1,76 +1,92 @@
-# Telegram Integration Deployment
+# Backend Deployment — Supabase + Telegram
 
-Step-by-step setup for the Supabase → Telegram lead notifications with
-inline status management. Do this once per environment.
+Project: **`hfnuudllnfnunvodreao`** · Telegram group topic: **Website Requests** (thread 98)
 
-## 1. Add Telegram tracking columns
+## Architecture
 
-Open the SQL Editor of project **`hfnuudllnfnunvodreao`** and run
-`supabase/migrations/0002_telegram_tracking.sql`. It adds two columns to
-`public.leads`: `tg_message_id`, `tg_thread_id`.
+```
+website form
+  → Edge Function `submit-lead`        (validates, honeypot, rate-limits 5/IP/hour,
+                                        inserts via service role)
+    → table public.leads
+      → trigger leads_notify_telegram  (pg_net, secret from Vault — migration 0003)
+        → Edge Function `lead-notify`  (formats card, posts to Telegram topic,
+                                        saves tg_message_id back on the lead)
+          → inline status buttons
+            → Telegram → Edge Function `tg-webhook`
+              (updates leads.status, edits the original card)
+```
 
-## 2. Create Edge Function secrets
+All three functions are deployed with **Verify JWT = OFF**. Each protects
+itself instead:
 
-Dashboard → **Project Settings → Edge Functions → Secrets** → add:
+| function      | auth                                                  |
+|---------------|-------------------------------------------------------|
+| `submit-lead` | public endpoint; validation + per-IP rate limit       |
+| `lead-notify` | `X-Lead-Notify-Secret` header (value lives in Vault)  |
+| `tg-webhook`  | `X-Telegram-Bot-Api-Secret-Token` from setWebhook     |
 
-| key                          | value                                                       |
-|------------------------------|-------------------------------------------------------------|
-| `TG_BOT_TOKEN`               | `8594104151:AAE1yzlcmvwDhKoYCrVWlxjvIaQ6DP2rDc4`           |
-| `TG_CHAT_ID`                 | `-1003948492906`                                            |
-| `TG_THREAD_ID`               | `98`                                                        |
-| `TG_WEBHOOK_SECRET`          | any long random string, e.g. `tg_wh_47Yx9pQz3aB...`         |
+## 0. ⚠️ Rotate the bot token FIRST
 
-`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are injected automatically
-by Supabase — don't add them manually.
+The previous `TG_BOT_TOKEN` was committed to this **public** repo and must
+be treated as compromised — removing it from the docs does not remove it
+from git history.
 
-> ⚠️ After we're done, **rotate `TG_BOT_TOKEN`** in @BotFather — it
-> appeared in chat. Update the secret here once you have the new value.
+1. In Telegram: **@BotFather → /mybots → @Handyhappyman_bot → API Token → Revoke current token.**
+2. Dashboard → **Project Settings → Edge Functions → Secrets** → update `TG_BOT_TOKEN`.
+3. Re-register the webhook with the new token (step 5 below) — the old
+   registration dies with the old token.
 
-## 3. Deploy `lead-notify` function
+## 1. Edge Function secrets
 
-Dashboard → **Edge Functions → Create a new function**.
+Dashboard → **Project Settings → Edge Functions → Secrets**:
 
-- Name: `lead-notify`
-- Verify JWT: **ON** (this one is called by Supabase, which signs its
-  webhook with the service-role key).
-- Paste the contents of `supabase/functions/lead-notify/index.ts`.
-- ALSO need the shared helper: in the dashboard, create folder
-  `_shared/` and add `format.ts` — paste the contents of
-  `supabase/functions/_shared/format.ts`.
-- Click **Deploy**.
+| key                  | value                                                        |
+|----------------------|--------------------------------------------------------------|
+| `TG_BOT_TOKEN`       | from @BotFather — **never commit this**                      |
+| `TG_CHAT_ID`         | `-1003948492906`                                             |
+| `TG_THREAD_ID`       | `98`                                                         |
+| `TG_WEBHOOK_SECRET`  | any long random string; same one passed to setWebhook        |
+| `LEAD_NOTIFY_SECRET` | same value as the Vault secret `lead_notify_secret`          |
 
-> If the dashboard doesn't allow multiple files, inline `format.ts` at
-> the top of `index.ts`.
+`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are injected automatically.
 
-## 4. Deploy `tg-webhook` function
+## 2. SQL migrations (SQL Editor, in order)
 
-Same flow as above, with one critical difference:
+| file                            | status                | what it does                                  |
+|---------------------------------|-----------------------|-----------------------------------------------|
+| `supabase-schema.sql`           | ✅ applied            | base `leads` table (fresh projects only)      |
+| `0002_telegram_tracking.sql`    | ✅ applied            | `tg_message_id`, `tg_thread_id` columns       |
+| `0003_telegram_trigger.sql`     | ✅ applied            | pg_net trigger → `lead-notify` (Vault secret) |
+| `0004_lead_hardening.sql`       | ⬜ run now            | `ip_hash`, status whitelist, length caps      |
+| `0005_revoke_anon_insert.sql`   | ⬜ run AFTER step 4   | kills direct inserts with the publishable key |
 
-- Name: `tg-webhook`
-- Verify JWT: **OFF** ← important, Telegram has no Supabase JWT
-- Paste `supabase/functions/tg-webhook/index.ts` (+ `_shared/format.ts`)
-- Click **Deploy**.
+## 3. Deploy the Edge Functions
 
-## 5. Wire Supabase Database Webhook → `lead-notify`
+Dashboard → **Edge Functions → Create / edit function**. For each:
+paste `index.ts`, add the shared file `_shared/format.ts` where imported
+(`lead-notify`, `tg-webhook`), set **Verify JWT: OFF**, deploy.
 
-Dashboard → **Database → Webhooks → Create a new webhook**.
+- `submit-lead` — new; no shared files needed.
+- `lead-notify` — already deployed; unchanged.
+- `tg-webhook` — already deployed; unchanged.
 
-- Name: `notify-tg-on-new-lead`
-- Table: `public.leads`
-- Events: ☑ `Insert` (only)
-- Type: **Supabase Edge Functions**
-- Function: `lead-notify`
-- HTTP headers: none required
-- Click **Create webhook**.
+## 4. Verify submit-lead end-to-end
 
-When a new lead row appears, Supabase posts the standard webhook payload
-to `lead-notify`, which formats and forwards to Telegram.
+```sh
+curl -X POST "https://hfnuudllnfnunvodreao.supabase.co/functions/v1/submit-lead" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"TEST — ignore","phone":"8085550123","tv_size":"65\" – 75\"","message":"deployment test"}'
+```
 
-## 6. Tell Telegram about `tg-webhook`
+Expected: `{"ok":true}`, a card in the Website Requests topic within ~2s,
+status buttons work. Then delete the test row in the Table Editor.
 
-Once `tg-webhook` is deployed and you know its public URL
-(`https://hfnuudllnfnunvodreao.supabase.co/functions/v1/tg-webhook`),
-run this curl to register it with Telegram:
+Only after this works, run `0005_revoke_anon_insert.sql` (step 2).
+
+## 5. Register the Telegram webhook
+
+(Re-)run after every bot-token rotation:
 
 ```sh
 curl -X POST "https://api.telegram.org/bot<TG_BOT_TOKEN>/setWebhook" \
@@ -83,16 +99,14 @@ curl -X POST "https://api.telegram.org/bot<TG_BOT_TOKEN>/setWebhook" \
   }'
 ```
 
-Substitute `<TG_BOT_TOKEN>` and `<TG_WEBHOOK_SECRET>` with the values
-from step 2.
+Verify: `curl "https://api.telegram.org/bot<TG_BOT_TOKEN>/getWebhookInfo"`
 
-To verify: `curl "https://api.telegram.org/bot<TG_BOT_TOKEN>/getWebhookInfo"`
+## 6. Final checks
 
-## 7. End-to-end test
-
-1. Submit the website form (or `curl POST` directly to `/rest/v1/leads`
-   with the publishable key).
-2. Within a second or two, a card appears in the **Website Requests**
-   topic with name/phone/TV size and four buttons.
-3. Tap any status button — the message is edited in place with `✓` next
-   to the chosen status, and `leads.status` is updated in Supabase.
+1. Submit the real website form → card appears, form shows the success
+   message.
+2. Tap a status button → card gets `✓`, `leads.status` changes.
+3. Submit 6 times quickly from one machine → the 6th returns the
+   "too many requests" message (rate limit works).
+4. `POST /rest/v1/leads` with the publishable key → **401/permission
+   denied** (after migration 0005).
