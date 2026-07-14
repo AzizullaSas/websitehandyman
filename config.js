@@ -26,9 +26,9 @@ window.HAPPY_MAX_CONFIG = {
   // Workmanship guarantee, in months. CONFIRM before changing copy-wide.
   guaranteeMonths: 12,
 
-  // Set to true only if the owner confirms a strict no-deposit policy;
-  // shows the "You pay when the work is done" line in the guarantee band.
-  payAfterCompletion: false,
+  // Owner confirmed the no-deposit policy (Jul 2026): shows the
+  // "You pay when the work is done" line in the guarantee band.
+  payAfterCompletion: true,
 
   // Price anchors. Value formats:
   //   120          → "$120" (flat price; addon-* keys render "+$120")
