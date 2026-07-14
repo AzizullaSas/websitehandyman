@@ -57,7 +57,10 @@ window.HAPPY_MAX_CONFIG = {
   // Google Business Profile. Buttons/links render only when set.
   //   profileUrl — the public Maps/GBP listing URL
   //   reviewUrl  — the short "write a review" link (g.page/r/…)
-  google: { profileUrl: "", reviewUrl: "" },
+  google: {
+    profileUrl: "https://g.page/r/CSxvr1NoH1BfEBM",
+    reviewUrl: "https://g.page/r/CSxvr1NoH1BfEBM/review"
+  },
 
   // Real Google rating — fill ONLY from the live GBP numbers once
   // reviews exist. The hero rating chip renders only when both are set.
