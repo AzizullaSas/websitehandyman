@@ -1,5 +1,15 @@
 # Backend Deployment — Supabase + Telegram
 
+> **⚠️ LEGACY.** As of Jul 2026 the website form posts to the HappyMax
+> **CRM project `fujjzktpumaxnyofsszy`** (function `submit-lead` there
+> validates, rate-limits, inserts into the CRM `leads` table with
+> `source='website'`, `business_ref='b_handy'`, and notifies the Telegram
+> group via the bot token in `app_config`). Website-lead cards go to the
+> group's General topic unless an `app_config` row
+> `website_leads_topic_id` (e.g. `98`) says otherwise.
+> Everything below describes the retired standalone project
+> `hfnuudllnfnunvodreao` and is kept for reference.
+
 Project: **`hfnuudllnfnunvodreao`** · Telegram group topic: **Website Requests** (thread 98)
 
 ## Architecture

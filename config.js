@@ -68,8 +68,10 @@ window.HAPPY_MAX_CONFIG = {
   //   metaPixelId — e.g. "1234567890"
   analytics: { ga4Id: "", metaPixelId: "" },
 
+  // HappyMax CRM project (leads table + Telegram notifications).
+  // The old standalone project (hfnuudllnfnunvodreao) is retired.
   supabase: {
-    url: "https://hfnuudllnfnunvodreao.supabase.co",
-    anonKey: "sb_publishable_6qvwEGrj0h9if9RkugbJcA_m8hEIMqo"
+    url: "https://fujjzktpumaxnyofsszy.supabase.co",
+    anonKey: "sb_publishable_i8hLfI8yYcSNBS1cwj609A_bSqwvTZX"
   }
 };
