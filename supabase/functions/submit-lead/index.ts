@@ -42,6 +42,17 @@ const json = (status: number, body: unknown) =>
 const clean = (v: unknown, max: number): string =>
   typeof v === "string" ? v.trim().slice(0, max) : "";
 
+// Quiz service values the website can send. Anything else drops to null.
+const SERVICE_ALLOWLIST = new Set([
+  "tv_mounting",
+  "furniture_assembly",
+  "ceiling_fan_light",
+  "drywall_repair",
+  "door_lock",
+  "picture_shelves",
+  "other",
+]);
+
 async function sha256Hex(s: string): Promise<string> {
   const digest = await crypto.subtle.digest(
     "SHA-256",
@@ -78,6 +89,9 @@ Deno.serve(async (req) => {
   const tv_size = clean(body.tv_size, 50);
   const wall_type = clean(body.wall_type, 50);
   const message = clean(body.message, 2000);
+  const serviceRaw = clean(body.service, 40);
+  const service = SERVICE_ALLOWLIST.has(serviceRaw) ? serviceRaw : "";
+  const attribution = clean(body.attribution, 300);
 
   if (name.length < 2) {
     return json(400, { error: "Please enter your name." });
@@ -123,6 +137,8 @@ Deno.serve(async (req) => {
       tv_size: tv_size || null,
       wall_type: wall_type || null,
       message: message || null,
+      service: service || null,
+      attribution: attribution || null,
       source: "website",
       status: "new",
       user_agent: (req.headers.get("user-agent") ?? "").slice(0, 400) || null,

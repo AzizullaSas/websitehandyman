@@ -60,6 +60,7 @@ Dashboard → **Project Settings → Edge Functions → Secrets**:
 | `0003_telegram_trigger.sql`     | ✅ applied            | pg_net trigger → `lead-notify` (Vault secret) |
 | `0004_lead_hardening.sql`       | ⬜ run now            | `ip_hash`, status whitelist, length caps      |
 | `0005_revoke_anon_insert.sql`   | ⬜ run AFTER step 4   | kills direct inserts with the publishable key |
+| `0006_service_attribution.sql`  | ⬜ optional (quiz v2) | `service`, `attribution` columns for the quiz |
 
 ## 3. Deploy the Edge Functions
 
@@ -67,9 +68,18 @@ Dashboard → **Edge Functions → Create / edit function**. For each:
 paste `index.ts`, add the shared file `_shared/format.ts` where imported
 (`lead-notify`, `tg-webhook`), set **Verify JWT: OFF**, deploy.
 
-- `submit-lead` — new; no shared files needed.
-- `lead-notify` — already deployed; unchanged.
-- `tg-webhook` — already deployed; unchanged.
+- `submit-lead` — no shared files needed.
+- `lead-notify` — needs `_shared/format.ts`.
+- `tg-webhook` — needs `_shared/format.ts`.
+
+### Quiz v2 upgrade (optional, after migration 0006)
+
+The website quiz sends two extra payload keys, `service` and
+`attribution`. The pre-0006 deployment silently ignores them (everything
+is duplicated inside `message`, so no data is lost). To get them as
+separate columns + Telegram card lines: run `0006_service_attribution.sql`,
+then redeploy `submit-lead` and `lead-notify` from this repo (both files
+changed; `_shared/format.ts` adds the `🔧 Service` / `📊 Src` lines).
 
 ## 4. Verify submit-lead end-to-end
 
