@@ -596,6 +596,11 @@
       if (!input) return;
       const key = input.dataset.input;
       if (key === "website" || !(key in state)) return;
+      // phone: allow only digits and common separators as they type
+      if (key === "phone") {
+        const cleaned = input.value.replace(/[^\d\s().+-]/g, "");
+        if (cleaned !== input.value) input.value = cleaned;
+      }
       state[key] = input.value;
       containers.forEach((other) => {
         if (other === container) return;
