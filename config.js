@@ -76,7 +76,7 @@ window.HAPPY_MAX_CONFIG = {
   analytics: {
     ga4Id: "",
     adsId: "AW-18197555570",
-    adsLeadLabel: "",
+    adsLeadLabel: "2vHkCNvd79QcEPLSouVD",  // «Отправка формы для потенциальных клиентов»
     adsCallLabel: "",
     metaPixelId: ""
   },
