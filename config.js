@@ -66,10 +66,20 @@ window.HAPPY_MAX_CONFIG = {
   // reviews exist. The hero rating chip renders only when both are set.
   reviews: { rating: null, count: null },
 
-  // Analytics load only when an ID is present.
-  //   ga4Id       — e.g. "G-XXXXXXXXXX"
-  //   metaPixelId — e.g. "1234567890"
-  analytics: { ga4Id: "", metaPixelId: "" },
+  // Analytics/ads tags — each loads only when its ID is present.
+  //   ga4Id        — Google Analytics 4, e.g. "G-XXXXXXXXXX"
+  //   adsId        — Google Ads tag (conversion tracking)
+  //   adsLeadLabel — Ads conversion label for a submitted quiz lead
+  //                  (Ads → Цели → Конверсии → создать действие → код → label)
+  //   adsCallLabel — Ads conversion label for phone-number clicks
+  //   metaPixelId  — Meta pixel, e.g. "1234567890"
+  analytics: {
+    ga4Id: "",
+    adsId: "AW-18197555570",
+    adsLeadLabel: "",
+    adsCallLabel: "",
+    metaPixelId: ""
+  },
 
   // HappyMax CRM project (leads table + Telegram notifications).
   // The old standalone project (hfnuudllnfnunvodreao) is retired.

@@ -15,15 +15,18 @@
 
   const A = CONFIG.analytics || {};
 
-  if (A.ga4Id) {
+  // One gtag.js loader serves both GA4 (G-…) and Google Ads (AW-…) tags.
+  const GTAG_ID = A.ga4Id || A.adsId;
+  if (GTAG_ID) {
     const s = document.createElement("script");
     s.async = true;
-    s.src = "https://www.googletagmanager.com/gtag/js?id=" + encodeURIComponent(A.ga4Id);
+    s.src = "https://www.googletagmanager.com/gtag/js?id=" + encodeURIComponent(GTAG_ID);
     document.head.appendChild(s);
     window.dataLayer = window.dataLayer || [];
     window.gtag = function () { window.dataLayer.push(arguments); };
     window.gtag("js", new Date());
-    window.gtag("config", A.ga4Id);
+    if (A.ga4Id) window.gtag("config", A.ga4Id);
+    if (A.adsId) window.gtag("config", A.adsId);
   }
 
   if (A.metaPixelId) {
@@ -44,7 +47,16 @@
 
   window.HMTrack = function (name, params) {
     try {
-      if (typeof window.gtag === "function") window.gtag("event", name, params || {});
+      if (typeof window.gtag !== "function") return;
+      window.gtag("event", name, params || {});
+      // Google Ads conversions fire only when a label is configured
+      // (created in Ads → Цели → Конверсии → «код события»).
+      if (A.adsId && name === "generate_lead" && A.adsLeadLabel) {
+        window.gtag("event", "conversion", { send_to: A.adsId + "/" + A.adsLeadLabel });
+      }
+      if (A.adsId && name === "call_click" && A.adsCallLabel) {
+        window.gtag("event", "conversion", { send_to: A.adsId + "/" + A.adsCallLabel });
+      }
     } catch (_) {}
   };
 
