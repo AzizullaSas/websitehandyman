@@ -94,11 +94,38 @@
   };
   if (toggle && menu) {
     toggle.addEventListener("click", () => {
-      setMenu(toggle.getAttribute("aria-expanded") !== "true");
+      const opening = toggle.getAttribute("aria-expanded") !== "true";
+      setMenu(opening);
+      if (opening) {
+        const first = menu.querySelector("a, button");
+        if (first) first.focus();
+      } else {
+        toggle.focus();
+      }
     });
     $$("a", menu).forEach((a) => a.addEventListener("click", () => setMenu(false)));
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && toggle.getAttribute("aria-expanded") === "true") setMenu(false);
+      if (toggle.getAttribute("aria-expanded") !== "true") return;
+      if (e.key === "Escape") {
+        setMenu(false);
+        toggle.focus();
+        return;
+      }
+      // Keep Tab inside the open overlay — the page behind it is covered,
+      // so tabbing onto it would strand keyboard and screen-reader users.
+      if (e.key !== "Tab") return;
+      const stops = [toggle].concat($$("a, button", menu))
+        .filter((el) => el.offsetParent !== null || el === toggle);
+      if (!stops.length) return;
+      const first = stops[0];
+      const last = stops[stops.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     });
     const mq = window.matchMedia("(min-width: 980px)");
     const onMq = (e) => { if (e.matches) setMenu(false); };
@@ -160,6 +187,70 @@
   const payLine = $("#payAfterLine");
   if (payLine && CONFIG.payAfterCompletion) payLine.hidden = false;
 
+  /* ----------------------- legal / licensing ----------------------- */
+  // Hawaii HRS §444-9.2 cuts both ways: advertising as a contractor
+  // without a license is a misdemeanour, and a licensee who advertises
+  // MUST publish the number. Both directions are driven from config so
+  // the claim on the page can never drift from reality.
+
+  const LICENSE = CONFIG.contractorLicense || null;
+  if (LICENSE) {
+    // Licensed now — surface the number everywhere the exemption note sits.
+    $$("[data-job-limit]").forEach((el) => { el.textContent = ""; });
+    $$("#scopeNote, .footer-legal").forEach((el) => {
+      el.innerHTML = `Happy Max Handyman Service LLC · Hawaii contractor license <strong>${LICENSE}</strong>.`;
+    });
+  } else {
+    const limit = CONFIG.handymanJobLimit || 1500;
+    const cur = (CONFIG.pricing || {}).currency || "$";
+    $$("[data-job-limit]").forEach((el) => {
+      el.textContent = cur + limit.toLocaleString("en-US");
+    });
+  }
+
+  // "Insured" is a factual claim about a policy that can lapse — one
+  // flag in config removes every instance of it at once.
+  if (CONFIG.insured === false) {
+    $$("[data-insured-chip], [data-insured-line], [data-insured-badge], [data-insured-faq]")
+      .forEach((el) => { el.hidden = true; });
+    $$("[data-insured-label]").forEach((el) => {
+      const strip = el.textContent.replace(/insured\s*/i, "").trim();
+      el.textContent = strip || "Locally Owned";
+    });
+  }
+
+  /* ------------------- JSON-LD drift guard (dev only) ------------------- */
+  // Structured data stays static in index.html — that's what crawlers read
+  // most reliably — but it repeats values that live in config.js. This
+  // warns in the console the moment the two disagree, so a config edit
+  // can't silently leave Google serving stale facts.
+  (function checkStructuredData() {
+    const block = document.querySelector('script[type="application/ld+json"]');
+    if (!block) return;
+    let data;
+    try { data = JSON.parse(block.textContent); } catch (_) {
+      console.warn("[HappyMax] business JSON-LD is not valid JSON — Google will ignore it.");
+      return;
+    }
+    const tel = (CONFIG.contactPhone || "").replace(/\D/g, "");
+    const ldTel = (data.telephone || "").replace(/\D/g, "");
+    if (tel && ldTel && tel !== ldTel) {
+      console.warn(`[HappyMax] JSON-LD telephone (${data.telephone}) ≠ config.contactPhone (${CONFIG.contactPhone}). Update index.html.`);
+    }
+    const spec = (data.openingHoursSpecification || [])[0] || {};
+    const openH = parseInt(String(spec.opens || "").split(":")[0], 10);
+    const closeH = parseInt(String(spec.closes || "").split(":")[0], 10);
+    const H = CONFIG.hours || {};
+    if (!isNaN(openH) && (openH !== H.open || closeH !== H.close)) {
+      console.warn(`[HappyMax] JSON-LD hours (${spec.opens}–${spec.closes}) ≠ config.hours (${H.open}–${H.close}). Update index.html.`);
+    }
+    const faq = document.querySelectorAll('script[type="application/ld+json"]')[1];
+    if (faq && CONFIG.guaranteeMonths &&
+        faq.textContent.indexOf(CONFIG.guaranteeMonths + "-month") === -1) {
+      console.warn(`[HappyMax] FAQ JSON-LD does not mention a ${CONFIG.guaranteeMonths}-month guarantee. Update index.html.`);
+    }
+  })();
+
   /* ----------------------- pricing (config-driven) ----------------------- */
   const P = CONFIG.pricing || {};
   const CUR = P.currency || "$";
@@ -196,7 +287,6 @@
     ["addon-wire-hiding", "Add-on: wires hidden"],
     ["addon-mount-pickup", "Add-on: we bring the right mount"],
     ["furniture-assembly", "Furniture assembly"],
-    ["ceiling-fan", "Ceiling fan swap"],
     ["drywall", "Drywall repair"],
     ["door-lock", "Door or lock work"],
     ["picture-hanging", "Pictures, mirrors & shelves"]

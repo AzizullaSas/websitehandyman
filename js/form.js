@@ -6,10 +6,9 @@
 //
 // The payload contract with submit-lead is additive-only:
 //   name, phone, email, tv_size, wall_type, message, website (honeypot)
-// plus the optional `service` / `attribution` keys, which the deployed
-// function safely ignores until migration 0006 + redeploy. Everything the
-// quiz collects is ALSO serialized into `message`, so no data is lost
-// either way.
+// plus `service`, `area` and `attribution`. A submit-lead deployment that
+// predates any of those keys simply ignores them — everything the quiz
+// collects is ALSO serialized into `message`, so no data is ever lost.
 
 (function () {
   "use strict";
@@ -68,33 +67,6 @@
       setTimeout(resolve, 400);
     });
 
-  // Fallback path: direct REST insert with the publishable key. Works
-  // while the anon role still has INSERT on "leads" (pre-migration-0005);
-  // the Telegram trigger fires on the insert either way.
-  const insertDirect = async (sb, data) => {
-    const res = await fetch(`${sb.url}/rest/v1/leads`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        apikey: sb.anonKey,
-        Authorization: `Bearer ${sb.anonKey}`,
-        Prefer: "return=minimal"
-      },
-      // legacy columns only — pre-0006 tables reject unknown keys
-      body: JSON.stringify([{
-        name: data.name,
-        phone: data.phone,
-        email: data.email || null,
-        tv_size: data.tv_size || null,
-        wall_type: data.wall_type || null,
-        message: data.message || null,
-        source: "website",
-        user_agent: navigator.userAgent
-      }])
-    });
-    if (!res.ok) throw new Error(`REST insert failed: ${res.status}`);
-  };
-
   const submitSupabase = async (data) => {
     const sb = CONFIG.supabase || {};
     if (!sb.url) throw new Error("Supabase is not configured. Set url in config.js.");
@@ -119,6 +91,7 @@
           wall_type: data.wall_type || "",
           message: data.message || "",
           service: data.service || "",
+          area: data.area || "",
           attribution: data.attribution || "",
           website: data.website || "" // honeypot — empty for real visitors
         })
@@ -135,15 +108,11 @@
       throw userError((body && body.error) || GENERIC_ERROR);
     }
 
-    // Function missing or gateway rejected the call — try the direct
-    // insert while that path still exists.
-    if (sb.anonKey && res && (res.status === 404 || res.status === 401)) {
-      try {
-        await insertDirect(sb, data);
-        return;
-      } catch (_) { /* fall through to the generic error */ }
-    }
-
+    // No REST fallback: `leads` is RLS-locked with no anon-facing policy
+    // (see migration revoke_public_read_on_leads), so a direct insert with
+    // the publishable key can only 401. submit-lead's service role is the
+    // one and only write path. Anything else here means the visitor gets
+    // the call/text fallback, which is the honest outcome.
     throw userError(GENERIC_ERROR);
   };
 

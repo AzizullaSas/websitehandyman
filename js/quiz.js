@@ -13,7 +13,6 @@
   const CONFIG = window.HAPPY_MAX_CONFIG || {};
   const LEAD = window.HappyMaxLead;
   const containers = Array.from(document.querySelectorAll("[data-quiz]"));
-  if (!containers.length || !LEAD) return;
 
   const PHONE = CONFIG.contactPhone || "+18082011311";
   const PHONE_DISPLAY = CONFIG.contactPhoneDisplay || "(808) 201-1311";
@@ -53,7 +52,13 @@
     return HOURS.days.indexOf(day) !== -1 && hour >= HOURS.open && hour < HOURS.close;
   }
 
+  // Published before any early return below: main.js's "Open now" pill
+  // depends on this, and it must not disappear just because the quiz
+  // markup did.
   window.HappyMaxHours = { isOpenNow, fmtHour };
+
+  // Nothing further to wire up without quiz containers or the lead API.
+  if (!containers.length || !LEAD) return;
 
   /* --------------------------- attribution --------------------------- */
 
@@ -79,10 +84,12 @@
 
   /* ------------------------------ data ------------------------------ */
 
+  // No electrical or plumbing options here — Hawaii's handyman exemption
+  // (HRS §444-2) does not cover that work at any price, so we must not
+  // take it or advertise it. Fan/light swaps were removed Aug 2026.
   const SERVICES = [
     { value: "tv_mounting",        label: "Mount a TV", tag: "Most popular" },
     { value: "furniture_assembly", label: "Assemble furniture" },
-    { value: "ceiling_fan_light",  label: "Ceiling fan / light swap" },
     { value: "drywall_repair",     label: "Drywall repair" },
     { value: "door_lock",          label: "Door or lock" },
     { value: "picture_shelves",    label: "Pictures, mirrors & shelves" },
@@ -102,11 +109,6 @@
       title: "How much furniture are we building?",
       micro: "Rough count is fine.",
       chips: ["1 item", "2–3 items", "Whole room"]
-    },
-    ceiling_fan_light: {
-      title: "What's the fan or light situation?",
-      micro: "Like-for-like swaps on the existing wiring.",
-      chips: ["Replace existing", "More than one", "Not sure"]
     },
     drywall_repair: {
       title: "How big is the damage?",
@@ -134,13 +136,39 @@
   const TV_MOUNT = ["Yes, I have one", "No — bring one", "Recommend one"];
   const TIMING = ["ASAP", "This week", "Flexible"];
 
+  // Where on Oahu the job is. Drive time across the island is the single
+  // biggest scheduling variable, so this rides along to the CRM's
+  // `location` column instead of being asked on the callback.
+  const AREAS = [
+    "Honolulu / Downtown", "Waikiki", "Kakaʻako / Ala Moana",
+    "Kailua", "Kaneohe", "Hawaii Kai", "Aiea / Pearl City",
+    "Kapolei / Ewa Beach", "Mililani / Wahiawa", "North Shore",
+    "Somewhere else on Oahu"
+  ];
+
   const DETAILS_PLACEHOLDER =
-    "e.g., two ceiling fans in Aiea, patch a doorknob hole, hang a gallery wall…";
+    "e.g., patch a doorknob hole in Aiea, hang a gallery wall…";
+
+  // Keep the free-text box small enough that it can't be used as a
+  // cold-email channel — see config.maxDetailsChars.
+  const MAX_DETAILS = CONFIG.maxDetailsChars || 300;
+
+  // One textarea markup for both places that render it.
+  function detailsHTML(id, label) {
+    const used = state.details.length;
+    return `
+      ${label}
+      <textarea class="quiz-textarea" id="${id}-details" data-input="details"
+        maxlength="${MAX_DETAILS}" placeholder="${esc(DETAILS_PLACEHOLDER)}"
+        aria-describedby="${id}-count">${esc(state.details)}</textarea>
+      <p class="quiz-count${used > MAX_DETAILS - 40 ? " is-near" : ""}" id="${id}-count">
+        <span data-count>${MAX_DETAILS - used}</span> characters left — a sentence is plenty.
+      </p>`;
+  }
 
   // service → pricing key in config (thank-you price hint, non-TV paths)
   const PRICE_KEYS = {
     furniture_assembly: "furniture-assembly",
-    ceiling_fan_light: "ceiling-fan",
     drywall_repair: "drywall",
     door_lock: "door-lock",
     picture_shelves: "picture-hanging"
@@ -164,6 +192,7 @@
     wall: "",
     mount: "",
     timing: "",
+    area: "",      // Oahu neighborhood → CRM `location`
     details: "",   // free text (step 2 "other" / step 3 optional)
     name: "",
     phone: "",
@@ -245,7 +274,7 @@
 
   function step1HTML() {
     return `
-      <h4 class="quiz-step-title">What do you need done?</h4>
+      <p class="quiz-step-title">What do you need done?</p>
       <p class="quiz-microcopy">Pick the closest one — you can add details in a sec.</p>
       <div class="chip-grid">
         ${SERVICES.map((s) =>
@@ -254,14 +283,13 @@
       </div>`;
   }
 
-  function step2HTML() {
+  function step2HTML(id) {
     const cfg = STEP2[state.service] || STEP2.other;
     if (cfg.textarea) {
       return `
-        <h4 class="quiz-step-title">${esc(cfg.title)}</h4>
+        <p class="quiz-step-title">${esc(cfg.title)}</p>
         <p class="quiz-microcopy">${esc(cfg.micro)}</p>
-        <textarea class="quiz-textarea" data-input="details" maxlength="1500"
-          placeholder="${esc(DETAILS_PLACEHOLDER)}">${esc(state.details)}</textarea>
+        ${detailsHTML(id, "")}
         <div class="quiz-nav">
           <button type="button" class="quiz-back" data-action="back">← Back</button>
           <button type="button" class="btn btn-navy quiz-next" data-action="next">Next</button>
@@ -270,7 +298,7 @@
     const field = state.service === "tv_mounting" ? "tvSize" : "scope";
     const current = state.service === "tv_mounting" ? state.tvSize : state.scope;
     return `
-      <h4 class="quiz-step-title">${esc(cfg.title)}</h4>
+      <p class="quiz-step-title">${esc(cfg.title)}</p>
       <p class="quiz-microcopy">${esc(cfg.micro)}</p>
       <div class="chip-grid">
         ${cfg.chips.map((c) => chipHTML(c, c, current === c, { field })).join("")}
@@ -280,10 +308,31 @@
       </div>`;
   }
 
-  function step3HTML() {
+  // Area picker — shared by both step-3 branches. A select rather than
+  // chips: 11 options would swamp the card, and one tap on mobile opens
+  // the native picker.
+  function areaHTML(id) {
+    return `
+      <p class="chip-row-label"><label for="${id}-area">Which part of Oahu?</label></p>
+      <select class="quiz-select" id="${id}-area" data-input="area">
+        <option value="">Choose your area…</option>
+        ${AREAS.map((a) =>
+          `<option value="${esc(a)}"${state.area === a ? " selected" : ""}>${esc(a)}</option>`).join("")}
+      </select>`;
+  }
+
+  function timingHTML() {
+    return `
+      <p class="chip-row-label">When do you need it?</p>
+      <div class="chip-grid">
+        ${TIMING.map((t) => chipHTML(t, t, state.timing === t, { field: "timing" })).join("")}
+      </div>`;
+  }
+
+  function step3HTML(id) {
     if (state.service === "tv_mounting") {
       return `
-        <h4 class="quiz-step-title">What's the wall made of?</h4>
+        <p class="quiz-step-title">What's the wall made of?</p>
         <p class="quiz-microcopy">Oahu condo towers are usually concrete — we mount on it every week.</p>
         <div class="chip-grid">
           ${TV_WALLS.map((w) => chipHTML(w, w, state.wall === w, { field: "wall" })).join("")}
@@ -292,21 +341,22 @@
         <div class="chip-grid">
           ${TV_MOUNT.map((m) => chipHTML(m, m, state.mount === m, { field: "mount" })).join("")}
         </div>
+        ${timingHTML()}
+        ${areaHTML(id)}
         <div class="quiz-nav">
           <button type="button" class="quiz-back" data-action="back">← Back</button>
           <button type="button" class="btn btn-navy quiz-next" data-action="next">Next</button>
         </div>`;
     }
     return `
-      <h4 class="quiz-step-title">When do you need it?</h4>
+      <p class="quiz-step-title">When and where?</p>
       <p class="quiz-microcopy">Same-day is often possible when you reach out in the morning.</p>
       <div class="chip-grid">
         ${TIMING.map((t) => chipHTML(t, t, state.timing === t, { field: "timing" })).join("")}
       </div>
-      ${state.service === "other" ? "" : `
-        <p class="chip-row-label">Anything else we should know? <span class="optional">(optional)</span></p>
-        <textarea class="quiz-textarea" data-input="details" maxlength="1500"
-          placeholder="${esc(DETAILS_PLACEHOLDER)}">${esc(state.details)}</textarea>`}
+      ${areaHTML(id)}
+      ${state.service === "other" ? "" : detailsHTML(id,
+        `<p class="chip-row-label"><label for="${id}-details">Anything else we should know? <span class="optional">(optional)</span></label></p>`)}
       <div class="quiz-nav">
         <button type="button" class="quiz-back" data-action="back">← Back</button>
         <button type="button" class="btn btn-navy quiz-next" data-action="next">Next</button>
@@ -319,7 +369,7 @@
       ? `Max will text or call you within ${REPLY_TEXT} (${HOURS_TEXT}). No spam, no sharing your info — ever.`
       : `It's after hours right now — Max will reach out first thing next business morning (${HOURS_TEXT}). No spam, no sharing your info — ever.`;
     return `
-      <h4 class="quiz-step-title">Where should we send your quote?</h4>
+      <p class="quiz-step-title">Where should we send your quote?</p>
       <div class="quiz-fields">
         <div class="quiz-field">
           <label for="${id}-name">Your name</label>
@@ -345,6 +395,10 @@
       <button type="button" class="btn btn-gold btn-lg quiz-submit${state.sending ? " is-loading" : ""}"
         data-action="submit" ${state.sending ? "disabled" : ""}>Get my free quote</button>
       <p class="quiz-under">Free quote · No obligation · You approve the price before any work starts.</p>
+      <p class="quiz-consent">By tapping “Get my free quote” you agree that Happy Max Handyman
+        Service LLC may call or text you at the number above about this request. Message and data
+        rates may apply; reply STOP at any time to opt out. Consent is not a condition of purchase.
+        See our <a href="privacy.html" target="_blank" rel="noopener">privacy policy</a>.</p>
       <div class="quiz-nav">
         <button type="button" class="quiz-back" data-action="back">← Back</button>
       </div>`;
@@ -379,8 +433,8 @@
     }
     let stepHTML = "";
     if (state.step === 1) stepHTML = step1HTML();
-    else if (state.step === 2) stepHTML = step2HTML();
-    else if (state.step === 3) stepHTML = step3HTML();
+    else if (state.step === 2) stepHTML = step2HTML(id);
+    else if (state.step === 3) stepHTML = step3HTML(id);
     else stepHTML = step4HTML(id);
 
     container.innerHTML = `
@@ -413,6 +467,17 @@
     const el = container.querySelector(selector);
     if (el) el.focus({ preventScroll: true });
     return !!el;
+  }
+
+  // Chip values carry quotes and dashes ('56" – 65"'), so match on the
+  // dataset instead of building an attribute selector around them — no
+  // escaping to get wrong, and no dependency on CSS.escape.
+  function focusChip(container, field, value) {
+    const el = Array.prototype.find.call(
+      container.querySelectorAll("[data-chip]"),
+      (c) => c.dataset.field === field && c.dataset.chip === value
+    );
+    if (el) el.focus({ preventScroll: true });
   }
 
   /* ------------------------------ flow ------------------------------ */
@@ -463,23 +528,27 @@
     }
     renderAll();
     // re-render dropped focus — put it back on the chip just pressed
-    focusIn(container, `[data-chip="${CSS.escape(value)}"][data-field="${CSS.escape(field)}"]`);
+    focusChip(container, field, value);
   }
 
   function validateStep(container) {
     let error = "";
+    let focusSel = ".chip, .quiz-textarea";
     if (state.step === 2 && state.service === "other" && !state.details.trim()) {
       error = "A single sentence about the job helps us quote it right.";
     } else if (state.step === 3 && state.service === "tv_mounting" && !state.wall) {
       error = "Pick the closest wall type — \"Not sure\" is fine.";
-    } else if (state.step === 3 && state.service !== "tv_mounting" && !state.timing) {
+    } else if (state.step === 3 && !state.timing) {
       error = "Pick a timing — \"Flexible\" is fine.";
+    } else if (state.step === 3 && !state.area) {
+      error = "Pick your part of the island so we can plan the drive.";
+      focusSel = ".quiz-select";
     }
     if (error) {
       state.error = error;
       renderAll();
       announce(error);
-      focusIn(container, ".chip, .quiz-textarea");
+      focusIn(container, focusSel);
       return false;
     }
     return true;
@@ -491,7 +560,8 @@
     if (state.scope) parts.push("Scope: " + state.scope);
     if (state.mount) parts.push("Mount: " + state.mount);
     if (state.timing) parts.push("Timing: " + state.timing);
-    if (state.details.trim()) parts.push("Details: " + state.details.trim());
+    if (state.area) parts.push("Area: " + state.area);
+    if (state.details.trim()) parts.push("Details: " + state.details.trim().slice(0, MAX_DETAILS));
     const attr = getAttribution();
     if (attr) parts.push("Src: " + attr);
     return parts.join(" | ").slice(0, 2000);
@@ -509,6 +579,7 @@
       wall_type: state.service === "tv_mounting" ? state.wall : "",
       message: buildMessage(),
       service: state.service,
+      area: state.area,
       attribution: getAttribution(),
       website: honeypot ? honeypot.value : ""
     };
@@ -591,7 +662,7 @@
     // inputs update state without re-render (keeps focus while typing);
     // mirror the value into the sibling instance so the two forms never
     // visibly desync when the visitor scrolls between them.
-    container.addEventListener("input", (e) => {
+    const onFieldChange = (e) => {
       const input = e.target.closest("[data-input]");
       if (!input) return;
       const key = input.dataset.input;
@@ -601,13 +672,33 @@
         const cleaned = input.value.replace(/[^\d\s().+-]/g, "");
         if (cleaned !== input.value) input.value = cleaned;
       }
+      // details: maxlength stops typing and pasting, but a stale cached
+      // page could still carry the old limit — clamp regardless
+      if (key === "details" && input.value.length > MAX_DETAILS) {
+        input.value = input.value.slice(0, MAX_DETAILS);
+      }
+      if (state[key] === input.value) return;
       state[key] = input.value;
+      // update the counter in place — re-rendering would drop focus mid-typing
+      if (key === "details") {
+        const left = MAX_DETAILS - input.value.length;
+        containers.forEach((c) => {
+          const box = c.querySelector(".quiz-count");
+          const num = box && box.querySelector("[data-count]");
+          if (num) num.textContent = String(left);
+          if (box) box.classList.toggle("is-near", left < 40);
+        });
+      }
       containers.forEach((other) => {
         if (other === container) return;
         const twin = other.querySelector(`[data-input="${key}"]`);
         if (twin && twin !== document.activeElement) twin.value = input.value;
       });
-    });
+    };
+    container.addEventListener("input", onFieldChange);
+    // <select> fires "input" in modern browsers but only "change" in
+    // older Safari — the handler no-ops when the value already matches.
+    container.addEventListener("change", onFieldChange);
 
     container.addEventListener("keydown", (e) => {
       if (e.key === "Enter" && e.target.matches(".quiz-input")) {

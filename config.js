@@ -23,6 +23,40 @@ window.HAPPY_MAX_CONFIG = {
   // Shown in "replies within N minutes" microcopy — keep it honest.
   responseMinutes: 60,
 
+  // Max characters in the quiz's free-text "details" box.
+  // Deliberately tight: a real job reads "two fans in Aiea, patch a
+  // doorknob hole" (~60 chars), while the B2B cold-pitches that were
+  // coming through this field ran 500-700. Raising this re-opens that
+  // door. Enforced again server-side — maxlength alone is trivial to
+  // bypass by posting straight to the endpoint.
+  maxDetailsChars: 300,
+
+  // ─────────────────────── LEGAL / LICENSING ───────────────────────
+  // Hawaii HRS §444-9.2(a): it is a MISDEMEANOR to advertise as a
+  // contractor without a license — and that applies even to businesses
+  // exempt from licensing under §444-2. So this value is load-bearing:
+  //
+  //   null        → the site never claims to be licensed, and shows the
+  //                 handyman-exemption scope note instead.
+  //   "C-33456"   → the number is rendered site-wide, which §444-9.2(b)
+  //                 REQUIRES of anyone who is licensed and advertises.
+  //
+  // Do NOT put anything here until a license is actually issued —
+  // an unlicensed "Licensed" claim is the exact thing the statute
+  // penalises. Confirmed Aug 2026: no contractor license.
+  contractorLicense: null,
+
+  // Hawaii handyman exemption ceiling (HRS §444-2): total labor +
+  // materials per job. Above this — or if the job needs a building
+  // permit, or is electrical/plumbing work — a licensed contractor is
+  // required and the job must be referred out.
+  handymanJobLimit: 1500,
+
+  // General liability insurance in force (policy via Thimble).
+  // Thimble sells short-term policies — if coverage ever lapses, set
+  // this to false and every "Insured" claim disappears site-wide.
+  insured: true,
+
   // Workmanship guarantee, in months. CONFIRM before changing copy-wide.
   guaranteeMonths: 12,
 
@@ -48,7 +82,6 @@ window.HAPPY_MAX_CONFIG = {
     "addon-wire-hiding": 50,    // cables hidden add-on
     "addon-mount-pickup": 50,   // we bring the right mount to you
     "furniture-assembly": null,
-    "ceiling-fan": null,
     "drywall": null,
     "door-lock": null,
     "picture-hanging": null
@@ -73,6 +106,17 @@ window.HAPPY_MAX_CONFIG = {
   //                  (Ads → Цели → Конверсии → создать действие → код → label)
   //   adsCallLabel — Ads conversion label for phone-number clicks
   //   metaPixelId  — Meta pixel, e.g. "1234567890"
+  //
+  // TODO(owner) — два пустых поля стоят денег, пока реклама крутится:
+  //
+  //  1. ga4Id: analytics.google.com → Admin → Create property → Web →
+  //     скопировать "G-XXXXXXXXXX". Без него неизвестно, сколько людей
+  //     заходит и где отваливается — все события уже шлются в код.
+  //
+  //  2. adsCallLabel: Ads → Цели → Конверсии → Создать действие →
+  //     "Сайт" → тип «Обращение по телефону» → взять label из сниппета.
+  //     Кнопка «Позвонить» стоит в 7 местах страницы и для этого бизнеса
+  //     звонок — основной канал; сейчас Ads эти конверсии не видит вообще.
   analytics: {
     ga4Id: "",
     adsId: "AW-18197555570",

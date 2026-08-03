@@ -535,12 +535,20 @@ a { color: var(--teal); }
   margin-top: 7px;
 }
 
+/* A form prompt, not a document heading — it used to be an <h4>, which
+   put an h1→h4 jump in the hero and tripped heading-order checks. These
+   four properties were inherited from the old h4 rules and are restated
+   here so the switch to <p> changes nothing visually. */
 .quiz-step-title {
   font-family: var(--ff-display);
   font-weight: 700;
   font-size: 1.08rem;
+  line-height: 1.12;
   color: var(--navy);
   margin: 14px 0 4px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  text-wrap: balance;
 }
 .quiz-microcopy {
   font-size: .85rem;
@@ -602,7 +610,7 @@ a { color: var(--teal); }
   margin: 12px 0 8px;
 }
 
-.quiz-textarea, .quiz-input {
+.quiz-textarea, .quiz-input, .quiz-select {
   width: 100%;
   font: inherit;
   font-size: 16px;               /* prevents iOS zoom */
@@ -614,12 +622,36 @@ a { color: var(--teal); }
   min-height: 52px;
 }
 .quiz-textarea { min-height: 96px; resize: vertical; }
+.quiz-select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 40px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23112e5e' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 16px;
+}
+.quiz-select:focus {
+  outline: none;
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(14, 127, 140, .15);
+}
 .quiz-input[aria-invalid="true"], .quiz-textarea[aria-invalid="true"] { border-color: #c4443a; }
 .quiz-input:focus, .quiz-textarea:focus {
   outline: none;
   border-color: var(--teal);
   box-shadow: 0 0 0 3px rgba(14, 127, 140, .15);
 }
+
+/* character budget under the free-text box */
+.quiz-count {
+  font-size: .78rem;
+  color: var(--muted);
+  margin: 6px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+.quiz-count.is-near { color: #8a4b12; font-weight: 600; }
 
 .quiz-fields { display: flex; flex-direction: column; gap: 12px; margin-bottom: 12px; }
 .quiz-field label {
@@ -658,6 +690,14 @@ a { color: var(--teal); }
   margin: 10px 0 0;
   text-align: center;
 }
+/* TCPA consent — must be legible, not hidden fine print */
+.quiz-consent {
+  font-size: .74rem;
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 10px 0 0;
+}
+.quiz-consent a { color: var(--teal); }
 .quiz-note {
   font-size: .85rem;
   color: var(--muted);
@@ -974,7 +1014,9 @@ a { color: var(--teal); }
   align-self: flex-start;
   font-size: .8rem;
   font-weight: 700;
-  color: var(--gold-text);
+  /* --gold-text on --gold-soft is only 4.1:1 — below AA for this size.
+     A darker brown on the same chip clears 4.5:1 while keeping the look. */
+  color: #6d5214;
   background: var(--gold-soft);
   border-radius: var(--r-pill);
   padding: 4px 12px;
@@ -1067,6 +1109,46 @@ a { color: var(--teal); }
   border-radius: 50%;
   background: rgba(212, 165, 55, .18) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23e6b84a' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 13 4 4 10-10'/%3E%3C/svg%3E") center / 12px no-repeat;
 }
+
+/* written warranty terms — advertised guarantees need readable terms */
+.guarantee-terms {
+  margin-top: 24px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: var(--r-md);
+  background: rgba(255, 255, 255, .04);
+}
+.guarantee-terms summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 18px;
+  min-height: 48px;
+  font-family: var(--ff-display);
+  font-weight: 700;
+  font-size: .95rem;
+  color: var(--gold-hot);
+  cursor: pointer;
+}
+.guarantee-terms summary::-webkit-details-marker { display: none; }
+.guarantee-terms summary::after {
+  content: "+";
+  font-size: 1.35rem;
+  line-height: 1;
+  flex: none;
+  transition: transform .2s ease;
+}
+.guarantee-terms[open] summary::after { transform: rotate(45deg); }
+.guarantee-terms-body { padding: 0 18px 16px; }
+.guarantee-terms-body p {
+  font-size: .9rem;
+  color: var(--on-dark-muted);
+  margin-bottom: .8em;
+}
+.guarantee-terms-body p:last-child { margin-bottom: 0; }
+.guarantee-terms-body strong { color: #fff; }
+.guarantee-terms-body a { color: var(--gold-hot); }
 
 .guarantee-stats {
   display: grid;
@@ -1415,6 +1497,52 @@ a.contact-row:hover .contact-text strong { color: var(--gold-hot); }
   border-top: 1px solid rgba(255, 255, 255, .08);
   padding-block: 20px;
   font-size: .82rem;
+}
+.footer-bottom a { color: var(--on-dark-muted); }
+.footer-bottom a:hover { color: var(--gold-hot); }
+
+/* Hawaii HRS §444 scope disclosure — legally load-bearing, so it is
+   readable body copy rather than shrunken fine print. */
+.footer-legal {
+  font-size: .82rem;
+  line-height: 1.6;
+  color: var(--on-dark-muted);
+  max-width: 90ch;
+  margin: 0 0 14px;
+}
+.footer-legal strong { color: #fff; }
+
+/* ============================================================
+   Legal pages (privacy policy)
+   ============================================================ */
+
+.legal-page { background: var(--paper); }
+.legal-inner { max-width: 760px; }
+.legal-inner h1 { margin-bottom: .25em; }
+.legal-inner h2 {
+  font-size: 1.3rem;
+  margin-top: 1.8em;
+  margin-bottom: .5em;
+}
+.legal-meta {
+  font-size: .88rem;
+  color: var(--muted);
+  margin-bottom: 1.6em;
+}
+.legal-inner p { color: var(--slate); }
+.legal-inner .lede { color: var(--muted); }
+.legal-list {
+  margin: 0 0 1em;
+  padding-left: 1.2em;
+  display: grid;
+  gap: 8px;
+}
+.legal-list li { color: var(--slate); }
+.legal-back {
+  margin-top: 2.5em;
+  padding-top: 1.4em;
+  border-top: 1px solid var(--kraft);
+  font-weight: 600;
 }
 
 /* ============================================================
