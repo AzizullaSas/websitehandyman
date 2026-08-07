@@ -87,10 +87,11 @@
   // No electrical or plumbing options here — Hawaii's handyman exemption
   // (HRS §444-2) does not cover that work at any price, so we must not
   // take it or advertise it. Fan/light swaps were removed Aug 2026.
-  // Trimmed Aug 2026 to the three jobs the funnel should quote. Drywall,
-  // doors/locks and odd jobs are still offered on the page — their cards
-  // route to text/call instead, because those quote from a photo far
-  // better than from chips. Fewer choices here also shortens step 1.
+  // Trimmed Aug 2026 to the three jobs the business advertises. Drywall
+  // repair, doors/locks and the small-job list were retired from the whole
+  // site in the same pass. Bringing any of them back needs four edits, not
+  // one: an entry here, a STEP2 branch, a service card in index.html, and
+  // a JSON-LD offer — otherwise the funnel and the structured data drift.
   const SERVICES = [
     { value: "tv_mounting",        label: "Mount a TV", tag: "Most popular" },
     { value: "furniture_assembly", label: "Assemble furniture" },
@@ -539,7 +540,7 @@
 
   // `done` is sticky, and both instances plus all seven CTAs read it — so
   // without this the visitor who submits a TV job can never ask about the
-  // drywall too: every button just re-shows the thank-you card. Contact
+  // bookshelves too: every button just re-shows the thank-you card. Contact
   // details are kept (same person, second job); the job answers are not.
   function restart(container) {
     state.step = 1;
@@ -562,7 +563,7 @@
   }
 
   // Switching to a different service invalidates every path-specific
-  // answer — otherwise a TV answer leaks into a drywall lead.
+  // answer — otherwise a TV answer leaks into a furniture lead.
   function setService(value) {
     if (state.service !== value) {
       state.scope = "";

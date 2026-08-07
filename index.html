@@ -62,10 +62,7 @@
       "itemListElement": [
         { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "TV Mounting", "serviceType": "TV wall mounting with cable concealment", "url": "https://happymaxhandymanservice.com/#tv-mounting", "areaServed": "Oahu, HI", "provider": { "@id": "https://happymaxhandymanservice.com/#business" } } },
         { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Furniture Assembly", "serviceType": "Flat-pack furniture assembly", "url": "https://happymaxhandymanservice.com/#furniture-assembly", "areaServed": "Oahu, HI", "provider": { "@id": "https://happymaxhandymanservice.com/#business" } } },
-        { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Drywall Repair", "serviceType": "Drywall patching and texture matching", "url": "https://happymaxhandymanservice.com/#drywall-repair", "areaServed": "Oahu, HI", "provider": { "@id": "https://happymaxhandymanservice.com/#business" } } },
-        { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Doors & Locks", "serviceType": "Door adjustment and lock replacement", "url": "https://happymaxhandymanservice.com/#doors-locks", "areaServed": "Oahu, HI", "provider": { "@id": "https://happymaxhandymanservice.com/#business" } } },
-        { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Pictures, Mirrors & Shelves", "serviceType": "Picture, mirror and shelf mounting", "url": "https://happymaxhandymanservice.com/#picture-hanging", "areaServed": "Oahu, HI", "provider": { "@id": "https://happymaxhandymanservice.com/#business" } } },
-        { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Small Home Repairs", "serviceType": "General small home repairs", "url": "https://happymaxhandymanservice.com/#small-jobs", "areaServed": "Oahu, HI", "provider": { "@id": "https://happymaxhandymanservice.com/#business" } } }
+        { "@type": "Offer", "itemOffered": { "@type": "Service", "name": "Pictures, Mirrors & Shelves", "serviceType": "Picture, mirror and shelf mounting", "url": "https://happymaxhandymanservice.com/#picture-hanging", "areaServed": "Oahu, HI", "provider": { "@id": "https://happymaxhandymanservice.com/#business" } } }
       ]
     }
   }
@@ -104,7 +101,7 @@
       {
         "@type": "Question",
         "name": "Are you a licensed contractor? What kind of jobs can you take?",
-        "acceptedAnswer": { "@type": "Answer", "text": "We are not a licensed contractor, and we won't pretend otherwise. Happy Max Handyman Service LLC works within Hawaii's handyman exemption (HRS §444-2): jobs where labor and materials together come to $1,500 or less, that don't need a building permit, and that aren't electrical or plumbing work. That covers TV mounting, furniture assembly, drywall patching, doors and locks, shelves and mirrors, and the small-repair list. If your job is bigger than that or needs a licensed trade, we'll tell you straight and point you to someone who holds the right license." }
+        "acceptedAnswer": { "@type": "Answer", "text": "We are not a licensed contractor, and we won't pretend otherwise. Happy Max Handyman Service LLC works within Hawaii's handyman exemption (HRS §444-2): jobs where labor and materials together come to $1,500 or less, that don't need a building permit, and that aren't electrical or plumbing work. That covers TV mounting, furniture assembly, and hanging pictures, mirrors and shelves. If your job is bigger than that or needs a licensed trade, we'll tell you straight and point you to someone who holds the right license." }
       },
       {
         "@type": "Question",
@@ -129,7 +126,7 @@
       {
         "@type": "Question",
         "name": "What areas of Oahu do you serve, and what else do you fix?",
-        "acceptedAnswer": { "@type": "Answer", "text": "All of it — Honolulu, Waikiki, Kaka'ako, Kailua, Kaneohe, Pearl City, Aiea, Kapolei, Ewa Beach, Mililani, and up to the North Shore. Beyond TVs: furniture assembly, drywall repair, doors and locks, shelving, and the small-repair list." }
+        "acceptedAnswer": { "@type": "Answer", "text": "All of it — Honolulu, Waikiki, Kaka'ako, Kailua, Kaneohe, Pearl City, Aiea, Kapolei, Ewa Beach, Mililani, and up to the North Shore. Beyond TVs: furniture assembly, plus pictures, mirrors and shelves." }
       }
     ]
   }
@@ -302,28 +299,6 @@
           <button type="button" class="card-cta quiz-open" data-service="furniture_assembly" data-track="cta_click" data-placement="service_card">Quote this →</button>
         </article>
 
-        <article class="card reveal" id="drywall-repair">
-          <span class="card-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 12h5l2-3 3 5 2-2h6"/></svg>
-          </span>
-          <h3>Drywall Repair</h3>
-          <p>Holes, dings, and old anchor scars patched, textured, and paint-ready — like they never happened.</p>
-          <p class="price-chip" data-price-chip="drywall" hidden></p>
-          <!-- Not a quiz path any more: drywall quotes from a photo, not
-               from chips. Straight to text, which is the faster channel. -->
-          <a class="card-cta" href="sms:+18082011311?&amp;body=Aloha%20Happy%20Max!%20I%27d%20like%20a%20quote%20for%3A%20" data-track="sms_click" data-placement="service_card_drywall">Text a photo for a quote →</a>
-        </article>
-
-        <article class="card reveal" id="doors-locks">
-          <span class="card-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"/><path d="M3 21h18"/><circle cx="14.6" cy="12" r="1.3"/></svg>
-          </span>
-          <h3>Doors &amp; Locks</h3>
-          <p>Sticking doors, sagging hinges, new deadbolts and handle sets — everything closing, latching, and locking the way it should.</p>
-          <p class="price-chip" data-price-chip="door-lock" hidden></p>
-          <a class="card-cta" href="sms:+18082011311?&amp;body=Aloha%20Happy%20Max!%20I%27d%20like%20a%20quote%20for%3A%20" data-track="sms_click" data-placement="service_card_doors">Text a photo for a quote →</a>
-        </article>
-
         <article class="card reveal" id="picture-hanging">
           <span class="card-icon" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="9" height="11" rx="1"/><path d="M8.5 6V4.5a1 1 0 0 1 2 0V6"/><rect x="16" y="6" width="4" height="7" rx="1"/><path d="M4 20h16"/></svg>
@@ -334,15 +309,6 @@
           <button type="button" class="card-cta quiz-open" data-service="picture_shelves" data-track="cta_click" data-placement="service_card">Quote this →</button>
         </article>
 
-        <article class="card reveal" id="small-jobs">
-          <span class="card-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4L15 12l-3-3z"/></svg>
-          </span>
-          <h3>The Whole Small-Job List</h3>
-          <p>Curtain rods, towel bars, caulking, baby gates, weatherstripping — the nagging list, knocked out in one visit.</p>
-          <p class="price-chip" data-price-chip="small-jobs" hidden></p>
-          <a class="card-cta" href="sms:+18082011311?&amp;body=Aloha%20Happy%20Max!%20I%27d%20like%20a%20quote%20for%3A%20" data-track="sms_click" data-placement="service_card_small_jobs">Text a photo for a quote →</a>
-        </article>
       </div>
       <p class="small-note reveal" id="scopeNote">Handyman-scope work only — repairs and installs where labor and materials together come to <strong data-job-limit>$1,500</strong> or less and no building permit is needed. We don't take electrical or plumbing work of any kind, including fan and light-fixture swaps. For those, and for anything bigger, we'll point you to a licensed contractor.</p>
     </div>
@@ -572,7 +538,7 @@
         </details>
         <details>
           <summary>Are you a licensed contractor? What kind of jobs can you take?</summary>
-          <p>We are not a licensed contractor, and we won't pretend otherwise — plenty of sites do. Happy Max Handyman Service LLC works within Hawaii's handyman exemption (HRS&nbsp;§444-2): jobs where labor and materials together come to <strong data-job-limit>$1,500</strong> or less, that don't require a building permit, and that aren't electrical or plumbing work. That covers TV mounting, furniture assembly, drywall patching, doors and locks, shelves and mirrors, and the small-repair list. If your job is bigger than that or needs a licensed trade, we'll say so up front and point you to someone who holds the right license.</p>
+          <p>We are not a licensed contractor, and we won't pretend otherwise — plenty of sites do. Happy Max Handyman Service LLC works within Hawaii's handyman exemption (HRS&nbsp;§444-2): jobs where labor and materials together come to <strong data-job-limit>$1,500</strong> or less, that don't require a building permit, and that aren't electrical or plumbing work. That covers TV mounting, furniture assembly, and hanging pictures, mirrors and shelves. If your job is bigger than that or needs a licensed trade, we'll say so up front and point you to someone who holds the right license.</p>
         </details>
         <details data-insured-faq>
           <summary>Do you carry insurance? What if something gets damaged?</summary>
@@ -592,7 +558,7 @@
         </details>
         <details>
           <summary>What areas of Oahu do you serve, and what else do you fix?</summary>
-          <p>All of it — Honolulu, Waikiki, Kaka&#699;ako, Kailua, Kaneohe, Pearl City, Aiea, Kapolei, Ewa Beach, Mililani, and up to the North Shore. Beyond TVs: furniture assembly, drywall repair, doors and locks, shelving, and the small-repair list.</p>
+          <p>All of it — Honolulu, Waikiki, Kaka&#699;ako, Kailua, Kaneohe, Pearl City, Aiea, Kapolei, Ewa Beach, Mililani, and up to the North Shore. Beyond TVs: furniture assembly, plus pictures, mirrors and shelves.</p>
         </details>
       </div>
     </div>
@@ -687,8 +653,6 @@
       <h4>Services</h4>
       <a href="#tv-mounting">TV mounting</a>
       <a href="#furniture-assembly">Furniture assembly</a>
-      <a href="#drywall-repair">Drywall repair</a>
-      <a href="#doors-locks">Doors &amp; locks</a>
       <a href="#picture-hanging">Pictures &amp; shelves</a>
     </div>
 

@@ -1001,6 +1001,17 @@ a { color: var(--teal); }
 @media (min-width: 640px) { .card-grid { grid-template-columns: 1fr 1fr; } }
 @media (min-width: 980px) { .card-grid { grid-template-columns: repeat(3, 1fr); } }
 
+/* The services grid holds two cards since the Aug 2026 trim, and three
+   fixed 1fr tracks stranded them in the left two thirds. auto-fit drops
+   the track nothing occupies and justify-content centres what is left —
+   so the row stays balanced whether there are two services or three. */
+@media (min-width: 980px) {
+  .services .card-grid {
+    grid-template-columns: repeat(auto-fit, minmax(0, 360px));
+    justify-content: center;
+  }
+}
+
 .card {
   display: flex;
   flex-direction: column;

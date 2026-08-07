@@ -82,8 +82,6 @@ window.HAPPY_MAX_CONFIG = {
     "addon-wire-hiding": 50,    // cables hidden add-on
     "addon-mount-pickup": 50,   // we bring the right mount to you
     "furniture-assembly": null,
-    "drywall": null,
-    "door-lock": null,
     "picture-hanging": null
   },
 

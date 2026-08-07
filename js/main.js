@@ -287,8 +287,6 @@
     ["addon-wire-hiding", "Add-on: wires hidden"],
     ["addon-mount-pickup", "Add-on: we bring the right mount"],
     ["furniture-assembly", "Furniture assembly"],
-    ["drywall", "Drywall repair"],
-    ["door-lock", "Door or lock work"],
     ["picture-hanging", "Pictures, mirrors & shelves"]
   ];
   const pricingSection = $("#pricing");
