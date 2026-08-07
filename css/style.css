@@ -487,6 +487,9 @@ a { color: var(--teal); }
   padding: clamp(20px, 2.6vw, 30px);
   position: relative;
   overflow: hidden;
+  /* steps 3 and 4 are taller than a phone screen, so anything scrolling
+     the card into view has to stop below the sticky header, not centre it */
+  scroll-margin-top: calc(var(--header-h) + 12px);
 }
 .quiz-card::before {
   content: "";
@@ -704,12 +707,14 @@ a { color: var(--teal); }
   margin: 0 0 10px;
 }
 
+/* Sits directly above the button that was just pressed (see js/quiz.js),
+   so it takes no room until there is something to say. */
 .quiz-status {
-  min-height: 1.4em;
   font-size: .9rem;
   font-weight: 600;
   margin-top: 10px;
 }
+.quiz-status:empty { display: none; }
 .quiz-status.is-error { color: #b3352c; }
 .quiz-status.is-success { color: #17714a; }
 
@@ -749,6 +754,23 @@ a { color: var(--teal); }
   gap: 10px;
   margin-top: 16px;
 }
+.quiz-restart {
+  display: block;
+  width: 100%;
+  margin-top: 16px;
+  padding: 12px 6px;
+  min-height: 44px;
+  background: none;
+  border: none;
+  border-top: 1px solid var(--kraft);
+  font: inherit;
+  font-weight: 600;
+  font-size: .88rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+.quiz-restart:hover { color: var(--navy); }
+
 .quiz-price-hint {
   background: var(--sand);
   border: 1px solid var(--kraft);
@@ -1023,9 +1045,13 @@ a { color: var(--teal); }
   margin: 0 0 10px;
 }
 
+/* Both a <button> (opens the quiz) and an <a href="sms:"> (cards whose
+   job quotes better from a photo) wear this — hence the reset of the
+   link defaults alongside the button ones. */
 .card-cta {
   margin-top: auto;
   align-self: flex-start;
+  text-decoration: none;
   background: none;
   border: none;
   padding: 10px 2px;
@@ -1410,6 +1436,10 @@ a { color: var(--teal); }
 
 .contact-grid {
   display: grid;
+  /* An explicit minmax(0, …) even in the one-column phone layout: an
+     implicit `auto` track grows to its widest unbreakable child, and the
+     email address below was doing exactly that. */
+  grid-template-columns: minmax(0, 1fr);
   gap: clamp(30px, 4vw, 56px);
   align-items: start;
 }
@@ -1441,9 +1471,14 @@ a { color: var(--teal); }
   color: var(--gold-hot);
 }
 .contact-icon svg { width: 21px; height: 21px; }
-.contact-text { display: flex; flex-direction: column; }
+/* min-width:0 — a flex item defaults to min-width:auto and refuses to
+   shrink below its longest unbreakable word. "happymaxhandyman@gmail.com"
+   is 26 such characters, which on a 320px screen widened this row, then
+   the #contact grid, then the document: the whole page picked up a
+   sideways scroll. The break rule is the second half of the same fix. */
+.contact-text { display: flex; flex-direction: column; min-width: 0; }
 .contact-text small { font-size: .78rem; color: var(--on-dark-muted); }
-.contact-text strong { color: #fff; font-size: 1rem; }
+.contact-text strong { color: #fff; font-size: 1rem; overflow-wrap: anywhere; }
 a.contact-row:hover .contact-text strong { color: var(--gold-hot); }
 
 .badges {
@@ -1556,7 +1591,10 @@ a.contact-row:hover .contact-text strong { color: var(--gold-hot); }
   bottom: 0;
   z-index: 60;
   display: grid;
-  grid-template-columns: 1.15fr 0.85fr 1fr;
+  /* "Text" needs far less room than "Free quote"; the old near-even split
+     starved the widest label and wrapped it onto a second line on 360px
+     Androids. Widths are proportional to the labels they hold. */
+  grid-template-columns: 1.1fr 0.72fr 1.18fr;
   gap: 8px;
   padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px));
   background: rgba(255, 253, 249, .96);
@@ -1578,19 +1616,41 @@ a.contact-row:hover .contact-text strong { color: var(--gold-hot); }
   font-family: var(--ff-display);
   font-weight: 700;
   font-size: .92rem;
+  /* "Call now" and "Free quote" were wrapping onto a second line on every
+     360px-wide Android — the commonest phone width there is — which made
+     the dock 82px tall against the 76px the body reserves for it. */
+  white-space: nowrap;
   text-decoration: none;
   border: none;
   cursor: pointer;
   padding: 8px 6px;
 }
+.dock-btn svg { flex: none; }
+
 .dock-call { background: linear-gradient(180deg, var(--gold-hot), var(--gold)); color: var(--ink); }
 .dock-text { background: transparent; color: var(--navy); border: 2px solid var(--navy); }
+/* `font: inherit` first, to clear the UA button font — hence the re-declared
+   family/weight/size that .dock-btn already carries for the two <a>s. */
 .dock-quote { background: var(--navy); color: #fff; font: inherit; font-family: var(--ff-display); font-weight: 700; font-size: .92rem; }
+
+/* Narrower than 360px (iPhone SE and friends) even the retuned columns
+   can't hold label + icon. The icons are decorative (aria-hidden), so
+   they go and the words — which carry the action — stay on one line.
+   Must sit after .dock-quote: same specificity, so source order decides,
+   and .dock-quote re-declares font-size. */
+@media (max-width: 359px) {
+  .dock-btn, .dock-quote { font-size: .86rem; }
+  .dock-btn { gap: 4px; padding: 8px 4px; }
+  .dock-btn svg { display: none; }
+}
 
 @media (min-width: 768px) {
   .sticky-dock { display: none; }
 }
-body.has-dock { padding-bottom: 76px; }
+/* Must clear the dock INCLUDING the home-indicator inset the dock itself
+   pads for — a flat 76px left the last line of the footer under it on
+   every notched iPhone. */
+body.has-dock { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
 @media (min-width: 768px) {
   body.has-dock { padding-bottom: 0; }
 }

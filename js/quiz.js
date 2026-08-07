@@ -87,13 +87,14 @@
   // No electrical or plumbing options here — Hawaii's handyman exemption
   // (HRS §444-2) does not cover that work at any price, so we must not
   // take it or advertise it. Fan/light swaps were removed Aug 2026.
+  // Trimmed Aug 2026 to the three jobs the funnel should quote. Drywall,
+  // doors/locks and odd jobs are still offered on the page — their cards
+  // route to text/call instead, because those quote from a photo far
+  // better than from chips. Fewer choices here also shortens step 1.
   const SERVICES = [
     { value: "tv_mounting",        label: "Mount a TV", tag: "Most popular" },
     { value: "furniture_assembly", label: "Assemble furniture" },
-    { value: "drywall_repair",     label: "Drywall repair" },
-    { value: "door_lock",          label: "Door or lock" },
-    { value: "picture_shelves",    label: "Pictures, mirrors & shelves" },
-    { value: "other",              label: "Something else", wide: true }
+    { value: "picture_shelves",    label: "Pictures, mirrors & shelves", wide: true }
   ];
 
   const SERVICE_LABELS = {};
@@ -110,21 +111,14 @@
       micro: "Rough count is fine.",
       chips: ["1 item", "2–3 items", "Whole room"]
     },
-    drywall_repair: {
-      title: "How big is the damage?",
-      micro: "A phone-photo guess is plenty.",
-      chips: ["Small hole", "Large patch", "Texture match"]
-    },
-    door_lock: {
-      title: "What's going on with the door?",
-      micro: "We bring standard hardware sizes.",
-      chips: ["Sticking door", "New lock or deadbolt", "Both"]
-    },
     picture_shelves: {
       title: "What are we hanging?",
       micro: "Heavy pieces get proper anchors.",
       chips: ["A few items", "Gallery wall", "Heavy mirror or shelves"]
     },
+    // No longer offered on step 1, but kept as step2HTML's `|| STEP2.other`
+    // fallback: a browser holding a cached page can still carry a retired
+    // service value, and that must render a free-text box, not throw.
     other: {
       title: "Tell us about the job in one sentence.",
       micro: "One sentence is plenty. Photos help too — you can text them after.",
@@ -169,8 +163,6 @@
   // service → pricing key in config (thank-you price hint, non-TV paths)
   const PRICE_KEYS = {
     furniture_assembly: "furniture-assembly",
-    drywall_repair: "drywall",
-    door_lock: "door-lock",
     picture_shelves: "picture-hanging"
   };
 
@@ -272,24 +264,34 @@
       </div>`;
   }
 
+  // The error message renders immediately above the control that produced
+  // it. It used to sit at the very bottom of the card — under the consent
+  // copy and the Back button — which on a phone left the visitor looking
+  // at a red-outlined field roughly 900px above an off-screen explanation,
+  // with the keyboard covering whatever was left.
+  const statusHTML = () =>
+    `<div class="quiz-status${state.error ? " is-error" : ""}">${esc(state.error)}</div>`;
+
   function step1HTML() {
     return `
-      <p class="quiz-step-title">What do you need done?</p>
+      <p class="quiz-step-title" tabindex="-1">What do you need done?</p>
       <p class="quiz-microcopy">Pick the closest one — you can add details in a sec.</p>
       <div class="chip-grid">
         ${SERVICES.map((s) =>
           chipHTML(s.value, s.label, state.service === s.value,
             { field: "service", tag: s.tag, wide: s.wide })).join("")}
-      </div>`;
+      </div>
+      ${statusHTML()}`;
   }
 
   function step2HTML(id) {
     const cfg = STEP2[state.service] || STEP2.other;
     if (cfg.textarea) {
       return `
-        <p class="quiz-step-title">${esc(cfg.title)}</p>
+        <p class="quiz-step-title" tabindex="-1">${esc(cfg.title)}</p>
         <p class="quiz-microcopy">${esc(cfg.micro)}</p>
         ${detailsHTML(id, "")}
+        ${statusHTML()}
         <div class="quiz-nav">
           <button type="button" class="quiz-back" data-action="back">← Back</button>
           <button type="button" class="btn btn-navy quiz-next" data-action="next">Next</button>
@@ -298,11 +300,12 @@
     const field = state.service === "tv_mounting" ? "tvSize" : "scope";
     const current = state.service === "tv_mounting" ? state.tvSize : state.scope;
     return `
-      <p class="quiz-step-title">${esc(cfg.title)}</p>
+      <p class="quiz-step-title" tabindex="-1">${esc(cfg.title)}</p>
       <p class="quiz-microcopy">${esc(cfg.micro)}</p>
       <div class="chip-grid">
         ${cfg.chips.map((c) => chipHTML(c, c, current === c, { field })).join("")}
       </div>
+      ${statusHTML()}
       <div class="quiz-nav">
         <button type="button" class="quiz-back" data-action="back">← Back</button>
       </div>`;
@@ -332,7 +335,7 @@
   function step3HTML(id) {
     if (state.service === "tv_mounting") {
       return `
-        <p class="quiz-step-title">What's the wall made of?</p>
+        <p class="quiz-step-title" tabindex="-1">What's the wall made of?</p>
         <p class="quiz-microcopy">Oahu condo towers are usually concrete — we mount on it every week.</p>
         <div class="chip-grid">
           ${TV_WALLS.map((w) => chipHTML(w, w, state.wall === w, { field: "wall" })).join("")}
@@ -343,13 +346,14 @@
         </div>
         ${timingHTML()}
         ${areaHTML(id)}
+        ${statusHTML()}
         <div class="quiz-nav">
           <button type="button" class="quiz-back" data-action="back">← Back</button>
           <button type="button" class="btn btn-navy quiz-next" data-action="next">Next</button>
         </div>`;
     }
     return `
-      <p class="quiz-step-title">When and where?</p>
+      <p class="quiz-step-title" tabindex="-1">When and where?</p>
       <p class="quiz-microcopy">Same-day is often possible when you reach out in the morning.</p>
       <div class="chip-grid">
         ${TIMING.map((t) => chipHTML(t, t, state.timing === t, { field: "timing" })).join("")}
@@ -357,6 +361,7 @@
       ${areaHTML(id)}
       ${state.service === "other" ? "" : detailsHTML(id,
         `<p class="chip-row-label"><label for="${id}-details">Anything else we should know? <span class="optional">(optional)</span></label></p>`)}
+      ${statusHTML()}
       <div class="quiz-nav">
         <button type="button" class="quiz-back" data-action="back">← Back</button>
         <button type="button" class="btn btn-navy quiz-next" data-action="next">Next</button>
@@ -369,7 +374,7 @@
       ? `Max will text or call you within ${REPLY_TEXT} (${HOURS_TEXT}). No spam, no sharing your info — ever.`
       : `It's after hours right now — Max will reach out first thing next business morning (${HOURS_TEXT}). No spam, no sharing your info — ever.`;
     return `
-      <p class="quiz-step-title">Where should we send your quote?</p>
+      <p class="quiz-step-title" tabindex="-1">Where should we send your quote?</p>
       <div class="quiz-fields">
         <div class="quiz-field">
           <label for="${id}-name">Your name</label>
@@ -392,6 +397,7 @@
         <input id="${id}-website" data-input="website" name="website" type="text" tabindex="-1" autocomplete="off">
       </div>
       <p class="quiz-note">${reply}</p>
+      ${statusHTML()}
       <button type="button" class="btn btn-gold btn-lg quiz-submit${state.sending ? " is-loading" : ""}"
         data-action="submit" ${state.sending ? "disabled" : ""}>Get my free quote</button>
       <p class="quiz-under">Free quote · No obligation · You approve the price before any work starts.</p>
@@ -422,6 +428,7 @@
           <a class="btn btn-outline" href="${SMS_PHOTO}" data-track="sms_click" data-placement="thankyou">Text us a photo of the job</a>
           <a class="btn btn-outline" href="assets/happymax.vcf" download>Add Max to contacts</a>
         </div>
+        <button type="button" class="quiz-restart" data-action="restart">Need something else quoted? Start a new request →</button>
       </div>`;
   }
 
@@ -437,14 +444,15 @@
     else if (state.step === 3) stepHTML = step3HTML(id);
     else stepHTML = step4HTML(id);
 
+    // Each step template places its own .quiz-status next to the control
+    // that can fail, so there is no trailing one here.
     container.innerHTML = `
       <div class="quiz-head">
         <p class="quiz-title">Get your free quote in 60 seconds</p>
         <p class="quiz-sub">~60 seconds · no email required</p>
         ${progressHTML()}
       </div>
-      ${stepHTML}
-      <div class="quiz-status${state.error ? " is-error" : ""}">${esc(state.error)}</div>`;
+      ${stepHTML}`;
   }
 
   const renderAll = () => containers.forEach(render);
@@ -463,10 +471,37 @@
     liveRegions.forEach((region) => { region.textContent = text; });
   }
 
-  function focusIn(container, selector) {
-    const el = container.querySelector(selector);
-    if (el) el.focus({ preventScroll: true });
-    return !!el;
+  // Selectors are tried in order, not merged: querySelector on a list
+  // returns whatever comes first in the document, and the step title
+  // precedes the chips — so a merged list would never focus a chip.
+  function focusIn(container, selectors) {
+    const list = Array.isArray(selectors) ? selectors : [selectors];
+    for (let i = 0; i < list.length; i++) {
+      const el = container.querySelector(list[i]);
+      if (el) { el.focus({ preventScroll: true }); return true; }
+    }
+    return false;
+  }
+
+  // Focus the first chip belonging to the question that failed, so the
+  // visitor lands on "pick a timing", not back at the top of the step.
+  function focusField(container, field) {
+    const el = Array.prototype.find.call(
+      container.querySelectorAll("[data-chip]"),
+      (c) => c.dataset.field === field
+    );
+    if (el) { el.focus({ preventScroll: true }); return true; }
+    return false;
+  }
+
+  // Steps 3 and 4 are taller than a phone screen. If a re-render leaves
+  // the top of the card above the fold, bring it back — otherwise the
+  // visitor is dropped into the middle of a question they can't see.
+  function keepCardInView(container) {
+    const card = container.closest(".quiz-card") || container;
+    if (card.getBoundingClientRect().top < 0) {
+      card.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   }
 
   // Chip values carry quotes and dashes ('56" – 65"'), so match on the
@@ -489,11 +524,41 @@
     state.error = "";
     renderAll();
     if (sourceContainer) {
-      focusIn(sourceContainer, ".chip, .quiz-input, .quiz-textarea");
+      keepCardInView(sourceContainer);
+      // Deliberately no .quiz-input here: auto-focusing the name field
+      // threw up the phone keyboard the instant "Next" was tapped, which
+      // hid the reply promise and the TCPA consent the visitor is about
+      // to agree to. The step title takes focus instead — same landing
+      // spot for keyboard and screen-reader users, no keyboard.
+      focusIn(sourceContainer, [".chip", ".quiz-textarea", ".quiz-step-title"]);
     }
     const title = document.querySelector("[data-quiz] .quiz-step-title");
     announce(`Step ${state.step} of 4.` + (title ? " " + title.textContent : ""));
     track("quiz_step", { step: state.step, service: state.service });
+  }
+
+  // `done` is sticky, and both instances plus all seven CTAs read it — so
+  // without this the visitor who submits a TV job can never ask about the
+  // drywall too: every button just re-shows the thank-you card. Contact
+  // details are kept (same person, second job); the job answers are not.
+  function restart(container) {
+    state.step = 1;
+    state.service = "";
+    state.scope = "";
+    state.tvSize = "";
+    state.wall = "";
+    state.mount = "";
+    state.timing = "";
+    state.area = "";
+    state.details = "";
+    state.error = "";
+    state.sending = false;
+    state.done = false;
+    quizStarted = false;      // a second job is a second funnel entry
+    renderAll();
+    keepCardInView(container);
+    focusIn(container, [".chip", ".quiz-step-title"]);
+    announce("Starting a new request. Step 1 of 4.");
   }
 
   // Switching to a different service invalidates every path-specific
@@ -533,22 +598,25 @@
 
   function validateStep(container) {
     let error = "";
-    let focusSel = ".chip, .quiz-textarea";
+    let field = "";              // chip group to send focus back to
+    let focusSel = [".quiz-textarea", ".chip"];
     if (state.step === 2 && state.service === "other" && !state.details.trim()) {
       error = "A single sentence about the job helps us quote it right.";
     } else if (state.step === 3 && state.service === "tv_mounting" && !state.wall) {
       error = "Pick the closest wall type — \"Not sure\" is fine.";
+      field = "wall";
     } else if (state.step === 3 && !state.timing) {
       error = "Pick a timing — \"Flexible\" is fine.";
+      field = "timing";
     } else if (state.step === 3 && !state.area) {
       error = "Pick your part of the island so we can plan the drive.";
-      focusSel = ".quiz-select";
+      focusSel = [".quiz-select"];
     }
     if (error) {
       state.error = error;
       renderAll();
       announce(error);
-      focusIn(container, focusSel);
+      if (!field || !focusField(container, field)) focusIn(container, focusSel);
       return false;
     }
     return true;
@@ -657,6 +725,7 @@
         if (validateStep(container)) goTo(state.step + 1, container);
       }
       if (action.dataset.action === "submit") submit(container);
+      if (action.dataset.action === "restart") restart(container);
     });
 
     // inputs update state without re-render (keeps focus while typing);
@@ -740,9 +809,13 @@
       renderAll();
       const target = nearestContainer();
       const card = target.closest(".quiz-card") || target;
-      card.scrollIntoView({ behavior: "smooth", block: "center" });
+      // block:"start" (+ the card's scroll-margin-top), not "center":
+      // steps 3 and 4 run ~950px tall against an ~840px phone viewport,
+      // so centring the card pushes its question and progress bar off
+      // the top of the screen.
+      card.scrollIntoView({ behavior: "smooth", block: "start" });
       window.setTimeout(() => {
-        const first = target.querySelector(".chip, .quiz-input, .quiz-textarea");
+        const first = target.querySelector(".chip, .quiz-textarea, .quiz-step-title");
         if (first) first.focus({ preventScroll: true });
       }, 450);
     }
