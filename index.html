@@ -24,7 +24,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css?v=20260812">
   <noscript><style>.reveal{opacity:1 !important;transform:none !important}</style></noscript>
 
   <script type="application/ld+json">
@@ -707,10 +707,16 @@
   </button>
 </nav>
 
-<script src="config.js"></script>
-<script src="js/form.js" defer></script>
-<script src="js/quiz.js" defer></script>
-<script src="js/main.js" defer></script>
+<!-- ?v= is a cache buster, and it is load-bearing. GitHub Pages serves
+     these with Cache-Control: max-age=600, so without it a returning
+     visitor can run a fresh index.html against ten-minute-old scripts —
+     which is exactly how a retired service reappeared in the quiz after
+     it had been deleted everywhere. BUMP THE DATE ON EVERY DEPLOY that
+     touches config.js, the js/ folder, or css/style.css. -->
+<script src="config.js?v=20260812"></script>
+<script src="js/form.js?v=20260812" defer></script>
+<script src="js/quiz.js?v=20260812" defer></script>
+<script src="js/main.js?v=20260812" defer></script>
 
 </body>
 </html>
