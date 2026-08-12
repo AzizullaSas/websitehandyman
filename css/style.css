@@ -613,6 +613,202 @@ a { color: var(--teal); }
   margin: 12px 0 8px;
 }
 
+/* ---------- day strip + arrival windows (booking services) ----------
+   A horizontal strip rather than a month grid: inside a quiz card on a
+   phone, seven narrow columns of numbers are unreadable, and a handyman
+   booked days out doesn't need a date three months away. */
+
+.daystrip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.daystrip-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;   /* don't let a flick page-swipe iOS */
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 2px;
+  padding: 3px 2px 10px;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--kraft) transparent;
+}
+.daystrip-scroll::-webkit-scrollbar { height: 5px; }
+.daystrip-scroll::-webkit-scrollbar-track { background: transparent; }
+.daystrip-scroll::-webkit-scrollbar-thumb {
+  background: var(--kraft);
+  border-radius: var(--r-pill);
+}
+
+.day-card {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: 74px;
+  min-height: 78px;
+  padding: 8px 4px;
+  font-family: var(--ff-body);
+  color: var(--navy);
+  background: var(--sand);
+  border: 1.5px solid var(--kraft);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: border-color .15s ease, background-color .15s ease, transform .1s ease;
+}
+.day-card:hover { border-color: var(--navy); }
+.day-card:active { transform: scale(.97); }
+.day-dow {
+  font-size: .68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  color: var(--muted);
+}
+.day-num {
+  font-family: var(--ff-display);
+  font-weight: 800;
+  font-size: 1.4rem;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+.day-mon { font-size: .7rem; font-weight: 600; color: var(--muted); }
+.day-card.is-today .day-dow { color: var(--gold-text); }
+.day-card[aria-pressed="true"] {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: #fff;
+}
+.day-card[aria-pressed="true"] .day-dow,
+.day-card[aria-pressed="true"] .day-mon { color: var(--gold); }
+
+/* Mouse affordance only: touch swipes, and Tab already scrolls the strip
+   to whatever it focuses. Hidden until there's a pointer worth serving. */
+.daystrip-arrow {
+  display: none;
+  flex: 0 0 auto;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0 3px;
+  font: 700 1.25rem/1 var(--ff-body);
+  color: var(--navy);
+  background: #fff;
+  border: 1.5px solid var(--kraft);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.daystrip-arrow:hover:not(:disabled) { border-color: var(--navy); }
+.daystrip-arrow:disabled { opacity: .28; cursor: default; }
+@media (min-width: 980px) and (pointer: fine) {
+  .daystrip-arrow { display: flex; }
+}
+
+/* how many times are still free that day */
+.day-left {
+  margin-top: 2px;
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: var(--gold-text);
+  font-variant-numeric: tabular-nums;
+}
+.day-left.is-scarce { color: #a8431c; }
+.day-card[aria-pressed="true"] .day-left,
+.day-card[aria-pressed="true"] .day-left.is-scarce { color: var(--gold); }
+
+/* ---------- start-time grid ---------- */
+.slot-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.slot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-height: 50px;
+  padding: 8px 4px;
+  font-family: var(--ff-body);
+  font-weight: 600;
+  font-size: .95rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--navy);
+  background: var(--sand);
+  border: 1.5px solid var(--kraft);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  transition: border-color .15s ease, background-color .15s ease, transform .1s ease;
+}
+.slot:hover:not(:disabled) { border-color: var(--navy); }
+.slot:active:not(:disabled) { transform: scale(.97); }
+.slot[aria-pressed="true"] {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: #fff;
+}
+/* Booked times stay visible rather than vanishing: a grid that silently
+   loses cells reads as broken, and seeing the day fill up is honest
+   pressure. Kept above 3:1 contrast so the label is still readable. */
+.slot.is-closed {
+  cursor: not-allowed;
+  background: repeating-linear-gradient(
+    -45deg, var(--sand-2), var(--sand-2) 5px, transparent 5px, transparent 10px);
+  border-color: var(--sand-2);
+  color: #8a8f98;
+}
+.slot.is-closed .slot-time { text-decoration: line-through; }
+.slot-tag {
+  font-size: .58rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: #8a8f98;
+}
+.chip-flexible {
+  width: 100%;
+  min-height: 46px;
+  font-size: .88rem;
+}
+.slot-checking {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  color: var(--teal);
+}
+.slot-checking::before {
+  content: "";
+  width: 11px;
+  height: 11px;
+  border: 2px solid rgba(14, 127, 140, .3);
+  border-top-color: var(--teal);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+/* iPhone SE and friends: three 100px columns overflow the card */
+@media (max-width: 359px) {
+  .slot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* The one line that keeps a preference from reading as a confirmed
+   booking — see js/quiz.js. Do not delete it with the styling. */
+.quiz-slot-note {
+  font-size: .78rem;
+  color: var(--muted);
+  margin: 8px 0 0;
+}
+
 .quiz-textarea, .quiz-input, .quiz-select {
   width: 100%;
   font: inherit;
@@ -771,13 +967,17 @@ a { color: var(--teal); }
 }
 .quiz-restart:hover { color: var(--navy); }
 
-.quiz-price-hint {
+.quiz-price-hint,
+.quiz-when-hint {
   background: var(--sand);
   border: 1px solid var(--kraft);
   border-radius: var(--r-md);
   padding: 12px 14px;
   font-size: .9rem;
 }
+/* the requested slot reads back against the gold rail, the price doesn't:
+   two identical boxes stacked would flatten into one grey block */
+.quiz-when-hint { border-left: 3px solid var(--gold); }
 
 .quiz-noscript p { margin: 0; }
 
@@ -1001,15 +1201,16 @@ a { color: var(--teal); }
 @media (min-width: 640px) { .card-grid { grid-template-columns: 1fr 1fr; } }
 @media (min-width: 980px) { .card-grid { grid-template-columns: repeat(3, 1fr); } }
 
-/* The services grid holds two cards since the Aug 2026 trim, and three
-   fixed 1fr tracks stranded them in the left two thirds. auto-fit drops
-   the track nothing occupies and justify-content centres what is left —
-   so the row stays balanced whether there are two services or three. */
+/* The "what's included" grid holds four cards since TV mounting became
+   the only service (Aug 2026). Column counts are pinned rather than
+   auto-fit: four cards against three tracks leaves one stranded on its
+   own row, which reads as a mistake. 2×2 until the container is wide
+   enough for a genuine single row of four. */
 @media (min-width: 980px) {
-  .services .card-grid {
-    grid-template-columns: repeat(auto-fit, minmax(0, 360px));
-    justify-content: center;
-  }
+  .services .card-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 1180px) {
+  .services .card-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
 
 .card {

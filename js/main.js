@@ -268,11 +268,14 @@
   const baseNum = (v) =>
     typeof v === "number" ? v : (Array.isArray(v) && typeof v[0] === "number" ? v[0] : null);
 
-  // "from $X" chips on service cards
+  // Price chips on the "what's included" cards. Add-ons read "+$30"
+  // because they sit on top of the mounting price, not instead of it —
+  // "from $30" on the concrete card would read as the whole job.
   $$("[data-price-chip]").forEach((chip) => {
-    const n = baseNum(P[chip.dataset.priceChip]);
+    const key = chip.dataset.priceChip;
+    const n = baseNum(P[key]);
     if (n != null) {
-      chip.textContent = `from ${CUR}${n}`;
+      chip.textContent = key.indexOf("addon-") === 0 ? `+${CUR}${n}` : `from ${CUR}${n}`;
       chip.hidden = false;
     }
   });
@@ -285,9 +288,7 @@
     ["tv-86plus", "TV mounting — 86″ and up"],
     ["addon-concrete", "Add-on: concrete wall"],
     ["addon-wire-hiding", "Add-on: wires hidden"],
-    ["addon-mount-pickup", "Add-on: we bring the right mount"],
-    ["furniture-assembly", "Furniture assembly"],
-    ["picture-hanging", "Pictures, mirrors & shelves"]
+    ["addon-mount-pickup", "Add-on: we bring the right mount"]
   ];
   const pricingSection = $("#pricing");
   const pricingRows = $("#pricingRows");

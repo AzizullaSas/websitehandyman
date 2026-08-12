@@ -25,7 +25,7 @@
 
   /* ---------------- business hours (shared with main.js) ---------------- */
 
-  const HOURS = CONFIG.hours || { days: [1, 2, 3, 4, 5, 6], open: 8, close: 19 };
+  const HOURS = CONFIG.hours || { days: [1, 2, 3, 4, 5, 6], open: 9, close: 18 };
 
   const fmtHour = (h) => `${((h + 11) % 12) + 1}${h >= 12 ? "pm" : "am"}`;
   const HOURS_TEXT = `Mon–Sat, ${fmtHour(HOURS.open)}–${fmtHour(HOURS.close)} HST`;
@@ -84,48 +84,28 @@
 
   /* ------------------------------ data ------------------------------ */
 
-  // No electrical or plumbing options here — Hawaii's handyman exemption
-  // (HRS §444-2) does not cover that work at any price, so we must not
-  // take it or advertise it. Fan/light swaps were removed Aug 2026.
-  // Trimmed Aug 2026 to the three jobs the business advertises. Drywall
-  // repair, doors/locks and the small-job list were retired from the whole
-  // site in the same pass. Bringing any of them back needs four edits, not
-  // one: an entry here, a STEP2 branch, a service card in index.html, and
-  // a JSON-LD offer — otherwise the funnel and the structured data drift.
-  const SERVICES = [
-    { value: "tv_mounting",        label: "Mount a TV", tag: "Most popular" },
-    { value: "furniture_assembly", label: "Assemble furniture" },
-    { value: "picture_shelves",    label: "Pictures, mirrors & shelves", wide: true }
+  // TV mounting is the ONLY thing this business advertises (Aug 2026 —
+  // the remaining handyman paths were retired site-wide, after drywall,
+  // doors/locks, fans and light fixtures went earlier). So the quiz has
+  // no service picker: a one-option question is a wasted tap. `service`
+  // is a constant that still rides along to the CRM, which files leads
+  // from several channels and needs to know which one this is.
+  //
+  // Re-adding a service is deliberately more than a one-line edit: an
+  // entry here, its own step-2 branch, a card in index.html, and a
+  // JSON-LD offer — otherwise the funnel and the structured data drift.
+  // Nothing electrical or plumbing may ever be added: Hawaii's handyman
+  // exemption (HRS §444-2) doesn't cover that work at any price.
+  const SERVICE = "tv_mounting";
+  const SERVICE_LABEL = "TV mounting";
+
+  const TV_SIZES = [
+    { value: 'Up to 55"', tag: "Most common" },
+    { value: '56" – 65"' },
+    { value: '66" – 85"' },
+    { value: '86" or larger' },
+    { value: "Not sure", wide: true }
   ];
-
-  const SERVICE_LABELS = {};
-  SERVICES.forEach((s) => { SERVICE_LABELS[s.value] = s.label; });
-
-  const STEP2 = {
-    tv_mounting: {
-      title: "What size is the TV?",
-      micro: "Not sure? Take a guess — we'll confirm before we quote.",
-      chips: ['Up to 55"', '56" – 65"', '66" – 85"', '86" or larger', "Not sure"]
-    },
-    furniture_assembly: {
-      title: "How much furniture are we building?",
-      micro: "Rough count is fine.",
-      chips: ["1 item", "2–3 items", "Whole room"]
-    },
-    picture_shelves: {
-      title: "What are we hanging?",
-      micro: "Heavy pieces get proper anchors.",
-      chips: ["A few items", "Gallery wall", "Heavy mirror or shelves"]
-    },
-    // No longer offered on step 1, but kept as step2HTML's `|| STEP2.other`
-    // fallback: a browser holding a cached page can still carry a retired
-    // service value, and that must render a free-text box, not throw.
-    other: {
-      title: "Tell us about the job in one sentence.",
-      micro: "One sentence is plenty. Photos help too — you can text them after.",
-      textarea: true
-    }
-  };
 
   const TV_WALLS = ["Drywall", "Concrete", "Brick", "Tile", "Not sure"];
   const TV_MOUNT = ["Yes, I have one", "No — bring one", "Recommend one"];
@@ -142,7 +122,7 @@
   ];
 
   const DETAILS_PLACEHOLDER =
-    "e.g., patch a doorknob hole in Aiea, hang a gallery wall…";
+    "e.g., mounting over a fireplace, 3rd floor walk-up, old TV to take down…";
 
   // Keep the free-text box small enough that it can't be used as a
   // cold-email channel — see config.maxDetailsChars.
@@ -161,12 +141,6 @@
       </p>`;
   }
 
-  // service → pricing key in config (thank-you price hint, non-TV paths)
-  const PRICE_KEYS = {
-    furniture_assembly: "furniture-assembly",
-    picture_shelves: "picture-hanging"
-  };
-
   // TV size chip → pricing bracket key
   const TV_BRACKETS = {
     'Up to 55"': "tv-upto-55",
@@ -179,12 +153,13 @@
 
   const state = {
     step: 1,
-    service: "",
-    scope: "",     // step-2 answer (chips) for non-TV paths
+    service: SERVICE,   // constant — kept so the CRM payload stays shaped
     tvSize: "",
     wall: "",
     mount: "",
-    timing: "",
+    timing: "",    // non-booking paths: ASAP / This week / Flexible
+    date: "",      // booking paths: preferred day, ISO "2026-08-12" (HST)
+    slot: "",      // booking paths: arrival window value, or "flexible"
     area: "",      // Oahu neighborhood → CRM `location`
     details: "",   // free text (step 2 "other" / step 3 optional)
     name: "",
@@ -216,17 +191,6 @@
     return null;
   };
 
-  function priceText(key) {
-    const v = PRICING[key];
-    if (typeof v === "number") return `typically ${CUR}${v}`;
-    if (Array.isArray(v) && v[0] != null) {
-      return v[1] != null
-        ? `typically ${CUR}${v[0]}–${CUR}${v[1]}`
-        : `from ${CUR}${v[0]}`;
-    }
-    return "";
-  }
-
   // Instant estimate for the thank-you panel: size bracket + the add-ons
   // the quiz already knows about (concrete wall, mount supplied by us).
   function tvEstimate() {
@@ -240,6 +204,186 @@
     if (state.wall === "Concrete") total += priceNum("addon-concrete") || 0;
     if (state.mount === "No — bring one") total += priceNum("addon-mount-pickup") || 0;
     return `typically ${CUR}${total}`;
+  }
+
+  /* --------------------------- scheduling --------------------------- */
+  // Preferred day + arrival window, for the services listed in
+  // config.booking.services. Everything is computed in Pacific/Honolulu,
+  // never in the visitor's time zone: someone browsing from the mainland
+  // at 9pm their time must still see Oahu's today, or they'd be offered a
+  // window that already closed.
+  //
+  // Nothing here reserves a slot — there is no calendar to check against.
+  // It is a preference that rides along to the CRM so Max calls back
+  // knowing when to aim for, and the copy never says "booked".
+
+  const BOOKING = CONFIG.booking || {};
+  const SLOT_HOURS = Array.isArray(BOOKING.slotHours) ? BOOKING.slotHours : [];
+  const BOOK_SERVICES = BOOKING.services || ["tv_mounting"];
+  const DAYS_AHEAD = BOOKING.daysAhead || 14;
+  const LEAD_HOURS = BOOKING.leadHours == null ? 2 : BOOKING.leadHours;
+  const BUFFER_HOURS = BOOKING.bufferHours == null ? 2 : BOOKING.bufferHours;
+  const CHECK_AVAIL = BOOKING.checkAvailability !== false;
+
+  // A path shows the picker only if config lists it AND there are times
+  // to offer — emptying config.booking.slotHours turns the feature off.
+  const isBookingService = (s) =>
+    SLOT_HOURS.length > 0 && BOOK_SERVICES.indexOf(s) !== -1;
+
+  // Day/month names are hard-coded rather than taken from Intl: the site
+  // is English-only, and Intl would render "вт, 12 авг" for a visitor
+  // whose browser is set to Russian.
+  const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const MON = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  const pad2 = (n) => (n < 10 ? "0" + n : String(n));
+  const fmtClock = (h) => `${((h + 11) % 12) + 1} ${h >= 12 ? "PM" : "AM"}`;
+
+  // Today's calendar date in Honolulu, as plain numbers.
+  function honoluluToday() {
+    try {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Pacific/Honolulu",
+        year: "numeric", month: "2-digit", day: "2-digit"
+      }).formatToParts(new Date());
+      const get = (t) => parseInt((parts.find((p) => p.type === t) || {}).value, 10);
+      return { y: get("year"), m: get("month"), d: get("day") };
+    } catch (_) {
+      const n = new Date();
+      return { y: n.getFullYear(), m: n.getMonth() + 1, d: n.getDate() };
+    }
+  }
+
+  /* ---------------------- taken-slot lookup ----------------------
+     The site is static, so it cannot know what is already booked without
+     asking. `submit-lead` answers a GET with the hours already spoken for
+     — dates and hours only, no names or numbers, nothing worth scraping.
+
+     Failure is deliberately silent and open: if the request errors, times
+     out, or the GET handler isn't deployed yet, every slot stays
+     selectable. Losing a lead to a scheduling lookup would cost far more
+     than Max moving one appointment by phone. */
+
+  const busy = { status: "idle", days: {} };
+
+  function busyHours(iso) {
+    const list = busy.days[iso];
+    return Array.isArray(list) ? list : [];
+  }
+
+  function loadAvailability() {
+    if (!CHECK_AVAIL || busy.status === "loading" || busy.status === "ready") return;
+    const sb = CONFIG.supabase || {};
+    if (!sb.url) { busy.status = "failed"; return; }
+    busy.status = "loading";
+
+    const headers = {};
+    if (sb.anonKey) {
+      headers.apikey = sb.anonKey;
+      headers.Authorization = `Bearer ${sb.anonKey}`;
+    }
+    fetch(`${sb.url}/functions/v1/submit-lead?days=${encodeURIComponent(DAYS_AHEAD)}`, { headers })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status))))
+      .then((body) => {
+        busy.days = (body && body.busy) || {};
+        busy.status = "ready";
+        dropStaleChoice();
+        if (state.step === 3) renderAll();
+      })
+      .catch(() => {
+        busy.status = "failed";
+        if (state.step === 3) renderAll();
+      });
+  }
+
+  // Availability can land after the visitor has already tapped a time.
+  // If their pick turns out to be spoken for, clear it and say so —
+  // quietly leaving it selected would send Max a double-booking.
+  function dropStaleChoice() {
+    if (!state.date || state.slot === "flexible" || state.slot === "") return;
+    if (slotStatus(state.date, state.slot, false) === "open") return;
+    state.slot = "";
+    state.error = "That time was just taken — please pick another.";
+  }
+
+  /* ------------------------- slot availability -------------------------
+     A time is closed when it is too soon (today only, `leadHours`) or when
+     it sits within `bufferHours` of a job already on the books. The buffer
+     is symmetric on purpose: a 9am job blocks 10am because Max is still
+     there, and blocks 8am because he could not finish and cross the island
+     in time. So the next bookable start after a 9am job is 11am. */
+
+  function slotStatus(iso, hour, isToday) {
+    if (isToday && hour < honoluluNow().hour + LEAD_HOURS) return "past";
+    const taken = busyHours(iso);
+    for (let i = 0; i < taken.length; i++) {
+      if (Math.abs(hour - taken[i]) < BUFFER_HOURS) {
+        return hour === taken[i] ? "taken" : "buffer";
+      }
+    }
+    return "open";
+  }
+
+  // Every slot for a day, each tagged with why it can or can't be picked.
+  function slotsFor(iso, isToday) {
+    return SLOT_HOURS.map((hour) => ({
+      hour,
+      label: fmtClock(hour),
+      status: slotStatus(iso, hour, isToday)
+    }));
+  }
+
+  const openCount = (slots) => slots.filter((s) => s.status === "open").length;
+
+  // The day strip, recomputed on every render — a visitor who leaves the
+  // tab open past closing time gets a strip that has moved on with them.
+  // Dates are walked in UTC at midday: no DST or local-midnight edge can
+  // shift the calendar date out from under the arithmetic.
+  function buildDays() {
+    const t = honoluluToday();
+    const cursor = new Date(Date.UTC(t.y, t.m - 1, t.d, 12));
+    const days = [];
+    for (let i = 0; i < DAYS_AHEAD; i++) {
+      const dow = cursor.getUTCDay();
+      if (HOURS.days.indexOf(dow) !== -1) {
+        const iso = `${cursor.getUTCFullYear()}-${pad2(cursor.getUTCMonth() + 1)}-${pad2(cursor.getUTCDate())}`;
+        const slots = slotsFor(iso, i === 0);
+        const open = openCount(slots);
+        // A day with nothing bookable left is not a choice — drop it
+        // rather than let someone tap into a wall of greyed-out times.
+        if (open > 0) {
+          days.push({
+            iso,
+            dow: DOW[dow],
+            day: cursor.getUTCDate(),
+            mon: MON[cursor.getUTCMonth()],
+            isToday: i === 0,
+            isTomorrow: i === 1,
+            slots,
+            open
+          });
+        }
+      }
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+    return days;
+  }
+
+  // Label straight from the ISO value, not from the strip: a stored
+  // choice must still read correctly on the thank-you card after the
+  // day it referred to has rolled off the strip.
+  function dayLabel(iso) {
+    const p = String(iso || "").split("-");
+    if (p.length !== 3) return "";
+    const d = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2], 12));
+    if (isNaN(d.getTime())) return "";
+    return `${DOW[d.getUTCDay()]}, ${MON[d.getUTCMonth()]} ${d.getUTCDate()}`;
+  }
+
+  function slotLabel(value) {
+    if (value === "flexible") return "Flexible — any time that day";
+    const h = Number(value);
+    return SLOT_HOURS.indexOf(h) === -1 ? "" : fmtClock(h);
   }
 
   /* ---------------------------- templates ---------------------------- */
@@ -273,42 +417,37 @@
   const statusHTML = () =>
     `<div class="quiz-status${state.error ? " is-error" : ""}">${esc(state.error)}</div>`;
 
+  // Step 1 used to ask which service. With one service left, the funnel
+  // opens on the question that actually varies the price.
   function step1HTML() {
     return `
-      <p class="quiz-step-title" tabindex="-1">What do you need done?</p>
-      <p class="quiz-microcopy">Pick the closest one — you can add details in a sec.</p>
+      <p class="quiz-step-title" tabindex="-1">What size is the TV?</p>
+      <p class="quiz-microcopy">Not sure? Take a guess — we'll confirm before we quote.</p>
       <div class="chip-grid">
-        ${SERVICES.map((s) =>
-          chipHTML(s.value, s.label, state.service === s.value,
-            { field: "service", tag: s.tag, wide: s.wide })).join("")}
+        ${TV_SIZES.map((s) =>
+          chipHTML(s.value, s.value, state.tvSize === s.value,
+            { field: "tvSize", tag: s.tag, wide: s.wide })).join("")}
       </div>
       ${statusHTML()}`;
   }
 
-  function step2HTML(id) {
-    const cfg = STEP2[state.service] || STEP2.other;
-    if (cfg.textarea) {
-      return `
-        <p class="quiz-step-title" tabindex="-1">${esc(cfg.title)}</p>
-        <p class="quiz-microcopy">${esc(cfg.micro)}</p>
-        ${detailsHTML(id, "")}
-        ${statusHTML()}
-        <div class="quiz-nav">
-          <button type="button" class="quiz-back" data-action="back">← Back</button>
-          <button type="button" class="btn btn-navy quiz-next" data-action="next">Next</button>
-        </div>`;
-    }
-    const field = state.service === "tv_mounting" ? "tvSize" : "scope";
-    const current = state.service === "tv_mounting" ? state.tvSize : state.scope;
+  // Both wall questions together: they're the two that decide which
+  // anchors and which mount go in the van.
+  function step2HTML() {
     return `
-      <p class="quiz-step-title" tabindex="-1">${esc(cfg.title)}</p>
-      <p class="quiz-microcopy">${esc(cfg.micro)}</p>
+      <p class="quiz-step-title" tabindex="-1">What's the wall made of?</p>
+      <p class="quiz-microcopy">Oahu condo towers are usually concrete — we mount on it every week.</p>
       <div class="chip-grid">
-        ${cfg.chips.map((c) => chipHTML(c, c, current === c, { field })).join("")}
+        ${TV_WALLS.map((w) => chipHTML(w, w, state.wall === w, { field: "wall" })).join("")}
+      </div>
+      <p class="chip-row-label">Do you already have a mount?</p>
+      <div class="chip-grid">
+        ${TV_MOUNT.map((m) => chipHTML(m, m, state.mount === m, { field: "mount" })).join("")}
       </div>
       ${statusHTML()}
       <div class="quiz-nav">
         <button type="button" class="quiz-back" data-action="back">← Back</button>
+        <button type="button" class="btn btn-navy quiz-next" data-action="next">Next</button>
       </div>`;
   }
 
@@ -333,34 +472,90 @@
       </div>`;
   }
 
+  // Day strip. The arrows are a mouse affordance only — they are
+  // aria-hidden and out of the tab order because Tab already walks the
+  // cards and the browser scrolls the container to whatever it focuses.
+  function dayStripHTML(id) {
+    const days = buildDays();
+    if (!days.length) return ""; // no windows left anywhere — see whenHTML
+    return `
+      <p class="chip-row-label" id="${id}-dayq">Which day works best?</p>
+      <div class="daystrip">
+        <button type="button" class="daystrip-arrow" data-strip="prev" aria-hidden="true" tabindex="-1">‹</button>
+        <div class="daystrip-scroll" data-daystrip role="group" aria-labelledby="${id}-dayq">
+          ${days.map((d) => `
+            <button type="button" class="day-card${d.isToday ? " is-today" : ""}"
+              data-chip="${d.iso}" data-field="date"
+              aria-label="${esc(dayLabel(d.iso))}${busy.status === "ready" ? `, ${d.open} time${d.open === 1 ? "" : "s"} available` : ""}"
+              aria-pressed="${state.date === d.iso ? "true" : "false"}">
+              <span class="day-dow">${d.isToday ? "Today" : d.isTomorrow ? "Tmrw" : d.dow}</span>
+              <span class="day-num">${d.day}</span>
+              <span class="day-mon">${d.mon}</span>
+              ${busy.status === "ready"
+                ? `<span class="day-left${d.open <= 2 ? " is-scarce" : ""}">${d.open} left</span>`
+                : ""}
+            </button>`).join("")}
+        </div>
+        <button type="button" class="daystrip-arrow" data-strip="next" aria-hidden="true" tabindex="-1">›</button>
+      </div>`;
+  }
+
+  // Times appear only after a day is picked — one question at a time on a
+  // phone, and it guarantees the grid on screen always belongs to the day
+  // above it (today's list is shorter, and every day's differs once
+  // bookings come back from the server).
+  function slotsHTML() {
+    const day = buildDays().filter((d) => d.iso === state.date)[0];
+    if (!day) return "";
+    const note = busy.status === "loading"
+      ? `<span class="slot-checking">Checking what's still open…</span>`
+      : busy.status === "ready"
+        ? `Greyed-out times are already booked. Jobs are spaced ${BUFFER_HOURS} hours apart.`
+        : `We'll confirm the exact time when Max calls.`;
+    return `
+      <p class="chip-row-label">What time on ${esc(dayLabel(state.date))}?</p>
+      <div class="slot-grid">
+        ${day.slots.map((s) => {
+          const open = s.status === "open";
+          const why = s.status === "taken" ? "already booked"
+            : s.status === "buffer" ? "too close to another job"
+            : s.status === "past" ? "too soon today"
+            : "";
+          return `
+          <button type="button" class="slot${open ? "" : " is-closed"}"
+            data-chip="${s.hour}" data-field="slot"
+            ${open ? "" : "disabled"}
+            aria-label="${s.label}${why ? " — " + why : ""}"
+            aria-pressed="${String(state.slot) === String(s.hour) ? "true" : "false"}">
+            <span class="slot-time">${s.label}</span>
+            ${s.status === "taken" || s.status === "buffer"
+              ? `<span class="slot-tag">Booked</span>` : ""}
+          </button>`;
+        }).join("")}
+      </div>
+      <button type="button" class="chip chip-flexible" data-chip="flexible" data-field="slot"
+        aria-pressed="${state.slot === "flexible" ? "true" : "false"}">
+        I'm flexible — Max picks the time
+      </button>
+      <p class="quiz-slot-note">${note}<br>Times are a request, not a locked-in booking — Max confirms when he calls.</p>`;
+  }
+
+  // Falls back to the old timing chips if config leaves no bookable day
+  // at all (every window past, tomorrow closed) — the visitor still has
+  // a way to say when, and the funnel never dead-ends.
+  function whenHTML(id) {
+    const strip = dayStripHTML(id);
+    if (!strip) return timingHTML();
+    return strip + (state.date ? slotsHTML() : "");
+  }
+
   function step3HTML(id) {
-    if (state.service === "tv_mounting") {
-      return `
-        <p class="quiz-step-title" tabindex="-1">What's the wall made of?</p>
-        <p class="quiz-microcopy">Oahu condo towers are usually concrete — we mount on it every week.</p>
-        <div class="chip-grid">
-          ${TV_WALLS.map((w) => chipHTML(w, w, state.wall === w, { field: "wall" })).join("")}
-        </div>
-        <p class="chip-row-label">Do you already have a mount?</p>
-        <div class="chip-grid">
-          ${TV_MOUNT.map((m) => chipHTML(m, m, state.mount === m, { field: "mount" })).join("")}
-        </div>
-        ${timingHTML()}
-        ${areaHTML(id)}
-        ${statusHTML()}
-        <div class="quiz-nav">
-          <button type="button" class="quiz-back" data-action="back">← Back</button>
-          <button type="button" class="btn btn-navy quiz-next" data-action="next">Next</button>
-        </div>`;
-    }
     return `
       <p class="quiz-step-title" tabindex="-1">When and where?</p>
-      <p class="quiz-microcopy">Same-day is often possible when you reach out in the morning.</p>
-      <div class="chip-grid">
-        ${TIMING.map((t) => chipHTML(t, t, state.timing === t, { field: "timing" })).join("")}
-      </div>
+      <p class="quiz-microcopy">Pick the day that suits you — Max confirms the window when he calls.</p>
+      ${isBookingService(state.service) ? whenHTML(id) : timingHTML()}
       ${areaHTML(id)}
-      ${state.service === "other" ? "" : detailsHTML(id,
+      ${detailsHTML(id,
         `<p class="chip-row-label"><label for="${id}-details">Anything else we should know? <span class="optional">(optional)</span></label></p>`)}
       ${statusHTML()}
       <div class="quiz-nav">
@@ -416,13 +611,19 @@
     const timing = open
       ? `Max will text or call you at <strong>${esc(state.phone)}</strong> within ${REPLY_TEXT} (${HOURS_TEXT}) with your flat quote.`
       : `It's after hours right now, so you'll hear from Max at <strong>${esc(state.phone)}</strong> first thing next business morning.`;
-    const price = state.service === "tv_mounting"
-      ? tvEstimate()
-      : (PRICE_KEYS[state.service] ? priceText(PRICE_KEYS[state.service]) : "");
+    const price = tvEstimate();
+    // Read back the requested slot, and say plainly that it isn't booked.
+    // Nothing on this site reserves time, so nothing here may imply it.
+    const when = state.date
+      ? `<p class="quiz-when-hint">You asked for <strong>${esc(dayLabel(state.date))}${
+          state.slot !== "" ? " · " + esc(slotLabel(state.slot)) : ""
+        }</strong>. Max will confirm that time when he calls — it's a request, not a locked-in booking.</p>`
+      : "";
     return `
       <div class="quiz-thanks">
         <h3 tabindex="-1">Mahalo, ${esc(state.name.split(" ")[0] || state.name)} — you're on the list!</h3>
         <p>Here's what happens next: ${timing} Save this number so you know it's us: <strong>${PHONE_DISPLAY}</strong>.</p>
+        ${when}
         ${price ? `<p class="quiz-price-hint">Based on your answers, this job is <strong>${esc(price)}</strong>. Max will text your exact flat quote.</p>` : ""}
         <div class="quiz-thanks-actions">
           <a class="btn btn-gold" href="tel:${PHONE}" data-track="call_click" data-placement="thankyou">Call now instead</a>
@@ -441,7 +642,7 @@
     }
     let stepHTML = "";
     if (state.step === 1) stepHTML = step1HTML();
-    else if (state.step === 2) stepHTML = step2HTML(id);
+    else if (state.step === 2) stepHTML = step2HTML();
     else if (state.step === 3) stepHTML = step3HTML(id);
     else stepHTML = step4HTML(id);
 
@@ -456,7 +657,54 @@
       ${stepHTML}`;
   }
 
-  const renderAll = () => containers.forEach(render);
+  const stripOf = (container) => container.querySelector("[data-daystrip]");
+
+  // Grey out an arrow once the strip is against that edge.
+  function syncArrows(strip) {
+    const wrap = strip.parentElement;
+    if (!wrap) return;
+    const max = strip.scrollWidth - strip.clientWidth - 1;
+    Array.prototype.forEach.call(wrap.querySelectorAll("[data-strip]"), (btn) => {
+      btn.disabled = btn.dataset.strip === "prev"
+        ? strip.scrollLeft <= 0
+        : strip.scrollLeft >= max;
+    });
+  }
+
+  // Re-rendering replaces the strip element, so its scroll listener dies
+  // with it — rewire after every render.
+  function enhanceStrips() {
+    containers.forEach((container) => {
+      const strip = stripOf(container);
+      if (!strip) return;
+      strip.addEventListener("scroll", () => syncArrows(strip), { passive: true });
+      // Coming Back to step 3 rebuilds the strip at scrollLeft 0. If the
+      // chosen day sits beyond the fold, pull it into view so the visitor
+      // sees their own answer instead of an apparently empty strip.
+      const picked = strip.querySelector('[aria-pressed="true"]');
+      if (picked && strip.scrollLeft === 0 &&
+          picked.offsetLeft + picked.offsetWidth > strip.clientWidth) {
+        strip.scrollLeft = Math.max(0, picked.offsetLeft - 12);
+      }
+      syncArrows(strip);
+    });
+  }
+
+  // innerHTML wipes the strip's scroll position on every keystroke-free
+  // re-render (picking a window, an error appearing). Carry it across so
+  // the visitor never loses their place mid-question.
+  const renderAll = () => {
+    const positions = containers.map((c) => {
+      const s = stripOf(c);
+      return s ? s.scrollLeft : 0;
+    });
+    containers.forEach(render);
+    containers.forEach((c, i) => {
+      const s = stripOf(c);
+      if (s && positions[i]) s.scrollLeft = positions[i];
+    });
+    enhanceStrips();
+  };
 
   // One persistent live region per instance, OUTSIDE the re-rendered
   // container, so step changes / errors are reliably announced.
@@ -511,7 +759,7 @@
   function focusChip(container, field, value) {
     const el = Array.prototype.find.call(
       container.querySelectorAll("[data-chip]"),
-      (c) => c.dataset.field === field && c.dataset.chip === value
+      (c) => c.dataset.field === field && c.dataset.chip === String(value)
     );
     if (el) el.focus({ preventScroll: true });
   }
@@ -523,6 +771,9 @@
   function goTo(step, sourceContainer) {
     state.step = Math.min(4, Math.max(1, step));
     state.error = "";
+    // Fetch the booked slots one step early so the grid on step 3 is
+    // already accurate the moment it appears.
+    if (state.step >= 2) loadAvailability();
     renderAll();
     if (sourceContainer) {
       keepCardInView(sourceContainer);
@@ -538,18 +789,18 @@
     track("quiz_step", { step: state.step, service: state.service });
   }
 
-  // `done` is sticky, and both instances plus all seven CTAs read it — so
-  // without this the visitor who submits a TV job can never ask about the
-  // bookshelves too: every button just re-shows the thank-you card. Contact
-  // details are kept (same person, second job); the job answers are not.
+  // `done` is sticky, and both instances plus every CTA read it — so
+  // without this a visitor who just booked the living-room TV can never
+  // ask about the bedroom one: every button re-shows the thank-you card.
+  // Contact details are kept (same person, second TV); job answers are not.
   function restart(container) {
     state.step = 1;
-    state.service = "";
-    state.scope = "";
     state.tvSize = "";
     state.wall = "";
     state.mount = "";
     state.timing = "";
+    state.date = "";
+    state.slot = "";
     state.area = "";
     state.details = "";
     state.error = "";
@@ -562,34 +813,36 @@
     announce("Starting a new request. Step 1 of 4.");
   }
 
-  // Switching to a different service invalidates every path-specific
-  // answer — otherwise a TV answer leaks into a furniture lead.
-  function setService(value) {
-    if (state.service !== value) {
-      state.scope = "";
-      state.tvSize = "";
-      state.wall = "";
-      state.mount = "";
-      state.timing = "";
-      state.details = "";
-    }
-    state.service = value;
-  }
-
   function selectChip(field, value, container) {
-    if (field === "service") {
-      setService(value);
-      if (!quizStarted) {
-        quizStarted = true;
-        track("quiz_start", { service: value, instance: container.dataset.quiz });
-      }
+    // Slot values arrive from the DOM as strings; keep the hour numeric
+    // in state so arithmetic against the buffer never compares "10" < 9.
+    if (field === "slot" && value !== "flexible") value = Number(value);
+    state[field] = value;
+    // The size chips are step 1, so the first chip tapped anywhere in the
+    // card is the moment the funnel starts.
+    if (!quizStarted) {
+      quizStarted = true;
+      track("quiz_start", { service: SERVICE, instance: container.dataset.quiz });
+    }
+    // step 1 asks a single question — no reason to make them press Next
+    if (field === "tvSize") {
       goTo(2, container);
       return;
     }
-    state[field] = value;
-    // single-question steps auto-advance
-    if (field === "tvSize" || field === "scope") {
-      goTo(3, container);
+    // Today offers fewer windows than tomorrow, so changing the day can
+    // strand a window that was legal a moment ago.
+    if (field === "date") {
+      const day = buildDays().filter((d) => d.iso === value)[0];
+      // The same hour can be free on one day and booked on the next.
+      if (state.slot !== "" && state.slot !== "flexible" && day &&
+          !day.slots.some((s) => s.hour === state.slot && s.status === "open")) {
+        state.slot = "";
+      }
+      renderAll();
+      focusChip(container, field, value);
+      // The window buttons only exist once a day is chosen, so say so —
+      // a sighted visitor sees them appear, a screen-reader user doesn't.
+      announce(`${dayLabel(value)} selected. Now choose a time.`);
       return;
     }
     renderAll();
@@ -601,12 +854,36 @@
     let error = "";
     let field = "";              // chip group to send focus back to
     let focusSel = [".quiz-textarea", ".chip"];
-    if (state.step === 2 && state.service === "other" && !state.details.trim()) {
-      error = "A single sentence about the job helps us quote it right.";
-    } else if (state.step === 3 && state.service === "tv_mounting" && !state.wall) {
+    const booking = state.step === 3 && isBookingService(state.service);
+    const day = booking && state.date
+      ? buildDays().filter((d) => d.iso === state.date)[0]
+      : null;
+
+    // A visitor can sit on step 3 long enough for their own answer to
+    // expire — the 9am window, tapped at 8:55, submitted at 10:10. Drop
+    // the stale choice and say why, rather than sending Max a slot that
+    // has already passed.
+    let expired = "";
+    if (booking && state.date && !day) {
+      state.date = "";
+      state.slot = "";
+      expired = "That day is no longer available — please pick another.";
+    } else if (day && state.slot !== "" && state.slot !== "flexible" &&
+               !day.slots.some((s) => s.hour === state.slot && s.status === "open")) {
+      state.slot = "";
+      expired = "That time is no longer available — please pick another.";
+    }
+
+    if (state.step === 2 && !state.wall) {
       error = "Pick the closest wall type — \"Not sure\" is fine.";
       field = "wall";
-    } else if (state.step === 3 && !state.timing) {
+    } else if (booking && !state.date) {
+      error = expired || "Pick the day that works best for you.";
+      field = "date";
+    } else if (booking && state.slot === "") {
+      error = expired || "Pick a start time — \"I'm flexible\" is fine.";
+      field = "slot";
+    } else if (state.step === 3 && !booking && !state.timing) {
       error = "Pick a timing — \"Flexible\" is fine.";
       field = "timing";
     } else if (state.step === 3 && !state.area) {
@@ -625,10 +902,18 @@
 
   function buildMessage() {
     const parts = [];
-    if (state.service) parts.push("Service: " + (SERVICE_LABELS[state.service] || state.service));
-    if (state.scope) parts.push("Scope: " + state.scope);
+    // TV size and wall type are NOT repeated here — they travel as their
+    // own payload keys and submit-lead prepends them to the message.
+    parts.push("Service: " + SERVICE_LABEL);
     if (state.mount) parts.push("Mount: " + state.mount);
-    if (state.timing) parts.push("Timing: " + state.timing);
+    // Booking paths carry a day + window; the others still carry the old
+    // ASAP/This week/Flexible answer. Never both — one question, one line.
+    if (state.date) {
+      parts.push("When: " + dayLabel(state.date) +
+        (state.slot !== "" ? " · " + slotLabel(state.slot) : ""));
+    } else if (state.timing) {
+      parts.push("Timing: " + state.timing);
+    }
     if (state.area) parts.push("Area: " + state.area);
     if (state.details.trim()) parts.push("Details: " + state.details.trim().slice(0, MAX_DETAILS));
     const attr = getAttribution();
@@ -644,11 +929,24 @@
       name: state.name.trim(),
       phone: state.phone.trim(),
       email: state.email.trim(),
-      tv_size: state.service === "tv_mounting" ? state.tvSize : "",
-      wall_type: state.service === "tv_mounting" ? state.wall : "",
+      tv_size: state.tvSize,
+      wall_type: state.wall,
       message: buildMessage(),
       service: state.service,
       area: state.area,
+      // Sent as their own keys so the Telegram card can lay them out as
+      // labelled blocks instead of re-printing the whole serialized
+      // `message` under a speech bubble.
+      mount: state.mount,
+      details: state.details.trim(),
+      // Sent as separate keys too, for whenever submit-lead grows columns
+      // for them. Until then they're ignored server-side and the same
+      // facts arrive inside `message` — the additive-only contract.
+      preferred_date: state.date,
+      // The hour is what the backend stores and hands back as "taken";
+      // the label is only for humans reading the Telegram card.
+      preferred_hour: typeof state.slot === "number" ? state.slot : "",
+      preferred_time: state.date && state.slot !== "" ? slotLabel(state.slot) : "",
       attribution: getAttribution(),
       website: honeypot ? honeypot.value : ""
     };
@@ -716,7 +1014,28 @@
     container.addEventListener("click", (e) => {
       const chip = e.target.closest("[data-chip]");
       if (chip && container.contains(chip)) {
+        // Booked times render as disabled buttons. Browsers already
+        // swallow clicks on those, but this handler is delegated — don't
+        // let a synthetic or bubbled event book a slot that isn't free.
+        if (chip.disabled) return;
         selectChip(chip.dataset.field, chip.dataset.chip, container);
+        return;
+      }
+      // Desktop-only nudge buttons for the day strip: a mouse can't swipe
+      // and the wheel scrolls the page, not the strip.
+      const arrow = e.target.closest("[data-strip]");
+      if (arrow) {
+        const strip = stripOf(container);
+        if (strip) {
+          const card = strip.querySelector(".day-card");
+          const step = (card ? card.offsetWidth + 8 : 82) * 3;
+          const delta = arrow.dataset.strip === "next" ? step : -step;
+          if (typeof strip.scrollBy === "function") {
+            strip.scrollBy({ left: delta, behavior: "smooth" });
+          } else {
+            strip.scrollLeft += delta; // older Safari
+          }
+        }
         return;
       }
       const action = e.target.closest("[data-action]");
@@ -793,20 +1112,12 @@
   }
 
   window.HappyMaxQuiz = {
-    open(service) {
-      if (state.done) {
-        // already submitted — just show the thank-you card
-      } else if (service && SERVICE_LABELS[service]) {
-        setService(service);
-        if (!quizStarted) {
-          quizStarted = true;
-          track("quiz_start", { service, instance: "cta" });
-        }
-        state.step = 2;
-        state.error = "";
-      } else if (!service) {
-        state.error = "";
-      }
+    // Every CTA on the page lands here. There is no service left to
+    // preselect, so this only clears a stale error and brings the card
+    // into view — at whatever step the visitor had reached, never
+    // resetting progress they already made.
+    open() {
+      if (!state.done) state.error = "";
       renderAll();
       const target = nearestContainer();
       const card = target.closest(".quiz-card") || target;
@@ -827,7 +1138,7 @@
     const btn = e.target.closest(".quiz-open");
     if (!btn) return;
     e.preventDefault();
-    window.HappyMaxQuiz.open(btn.dataset.service || "");
+    window.HappyMaxQuiz.open();
   });
 
   renderAll();

@@ -18,10 +18,49 @@ window.HAPPY_MAX_CONFIG = {
 
   // Business hours (HST) used by the "Open now" pill and thank-you copy.
   // days: 1 = Monday … 6 = Saturday (0 = Sunday).
-  hours: { days: [1, 2, 3, 4, 5, 6], open: 8, close: 19 },
+  hours: { days: [1, 2, 3, 4, 5, 6], open: 9, close: 18 },
 
   // Shown in "replies within N minutes" microcopy — keep it honest.
   responseMinutes: 60,
+
+  // ───────────────────────── SCHEDULING ─────────────────────────
+  // The quiz asks for a preferred day and start time. It is still a
+  // REQUEST, not a confirmed booking — no money changes hands and Max
+  // confirms by phone — but the picker now hides times that are already
+  // spoken for, so the copy says "we'll confirm", never "you're booked".
+  //
+  //   slotHours   — bookable START times, HST 24h. First job at 9am, last
+  //                 at 5pm so the van is packed by close (18:00 above).
+  //                 The grid renders straight from this list.
+  //   daysAhead   — how far ahead the day strip runs, in calendar days.
+  //                 Sundays — and any day missing from `hours.days` —
+  //                 drop out on their own.
+  //   leadHours   — minimum notice before the next job. At 10am with
+  //                 leadHours 2, today starts at 12pm. When no time is
+  //                 left, today drops off the strip entirely.
+  //   bufferHours — spacing between two jobs: travel across Oahu plus the
+  //                 install itself. With 2, a 9am booking also takes 10am
+  //                 off the board (and 8am, if it existed) — the next
+  //                 bookable time is 11am. Raise it if jobs start running
+  //                 long; it is the single number that controls how many
+  //                 jobs a day can hold.
+  //   checkAvailability — ask the backend which slots are taken. Requires
+  //                 the GET handler in submit-lead (see DEPLOY note in
+  //                 AI AGENT FOR TG). Until that is deployed the request
+  //                 fails and every slot simply stays open — a lead is
+  //                 never lost to a scheduling lookup. Set false to stop
+  //                 asking at all.
+  //   services    — which quiz paths show the picker. One service, one
+  //                 entry; emptying `slotHours` disables the picker and
+  //                 the quiz falls back to ASAP / This week / Flexible.
+  booking: {
+    slotHours: [9, 10, 11, 12, 13, 14, 15, 16, 17],
+    daysAhead: 14,
+    leadHours: 2,
+    bufferHours: 2,
+    checkAvailability: true,
+    services: ["tv_mounting"]
+  },
 
   // Max characters in the quiz's free-text "details" box.
   // Deliberately tight: a real job reads "two fans in Aiea, patch a
@@ -80,9 +119,7 @@ window.HAPPY_MAX_CONFIG = {
     "tv-86plus": "upon request",
     "addon-concrete": 30,       // concrete wall add-on
     "addon-wire-hiding": 50,    // cables hidden add-on
-    "addon-mount-pickup": 50,   // we bring the right mount to you
-    "furniture-assembly": null,
-    "picture-hanging": null
+    "addon-mount-pickup": 50    // we bring the right mount to you
   },
 
   // Google Business Profile. Buttons/links render only when set.

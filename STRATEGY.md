@@ -40,9 +40,13 @@
   считает рекламой и профиль GBP): убрать любые «Licensed», убрать услугу
   «ceiling fans / lights» (электрика вне handyman-исключения). То же самое —
   на Yelp, Thumbtack, Nextdoor, в визитках и наклейке на машине.
-- Заполнить профиль до конца: 6 услуг (TV mounting, furniture assembly,
-  drywall repair, doors & locks, pictures & shelves, small repairs),
-  зона обслуживания = весь Оаху, часы Mon–Sat 8–19.
+- Заполнить профиль до конца. **Услуги — только про телевизоры** (сайт с
+  11.08.2026 продаёт исключительно установку TV): TV mounting, TV wall
+  mounting on concrete, cable concealment, sound bar installation.
+  Мебель, картины/полки, drywall, двери и замки, «small repairs» —
+  удалить из профиля, если остались: профиль обещает то, чего бизнес
+  больше не делает, а по §444-9.2 профиль считается рекламой.
+  Зона обслуживания = весь Оаху, часы Mon–Sat 8–19.
 - Скрыть адрес (service-area business) — работаешь на выезд.
 - Загрузить 10+ реальных фото работ (до/после, процесс, инструмент).
 - Получить короткую ссылку на отзыв (`g.page/r/...`) и вписать в
@@ -62,7 +66,7 @@
 ## Неделя 3–6: каталоги и цитирования (NAP)
 
 Везде ОДИНАКОВО, символ в символ:
-`Happy Max Handyman Service LLC · (808) 201-1311 · happymaxhandyman@gmail.com · Honolulu, HI · Mon–Sat 8:00am–7:00pm`
+`Happy Max Handyman Service LLC · (808) 201-1311 · happymaxhandyman@gmail.com · Honolulu, HI · Mon–Sat 9:00am–6:00pm`
 
 Порядок: Bing Places → Apple Business Connect → Yelp → Nextdoor →
 Facebook Page → Thumbtack → Angi. В каждом — ссылка на сайт с UTM
@@ -82,22 +86,28 @@ Nextdoor отдельно важен: локальные рекомендаци�
 ## Месяц 2–3: платный трафик (когда отзывы ≥ 5 и HTTPS ок)
 
 - Google Ads, $10–15/день, кампания только на звонки:
-  «tv mounting honolulu», «tv wall mount oahu», «handyman honolulu» →
-  URL с `?utm_source=ads&utm_medium=cpc`.
+  «tv mounting honolulu», «tv wall mount oahu», «tv installation oahu»,
+  «mount tv on concrete wall» → URL с `?utm_source=ads&utm_medium=cpc`.
+  Ключ «handyman honolulu» больше НЕ брать: сайт про телевизоры, клик
+  за сборкой мебели — деньги на ветер. В минус-слова: furniture,
+  assembly, repair, plumbing, electrical, tv repair (чинить телевизоры
+  мы тоже не умеем — только вешать).
 - Google Local Services Ads (Google Guaranteed) — в Гонолулу дорого, но
   лиды целевые; подключать после 10 отзывов.
 - Пока не менять номер на трекинговый в GBP/каталогах (ломает NAP).
 
 ## Дорожная карта сайта (когда появятся данные)
 
-- Отдельные страницы услуг (`/tv-mounting-honolulu.html` и т.п.) — когда
-  какая-то услуга даёт 5+ лидов/месяц из поиска.
+- Страницы под районы, а не под услуги (услуга одна): `/tv-mounting-kailua`,
+  `/tv-mounting-waikiki` и т.п. — когда с поиска пойдёт 20+ лидов/месяц и
+  станет видно, какие районы дают деньги.
 - Фото до/после в секцию TV mounting + фото Макса в блок Meet Max
   (слот уже готов: `assets/max.jpg`).
-- Бэкенд-апгрейд (по желанию): выполнить `supabase/migrations/0006_…`,
-  передеплоить `submit-lead` и `lead-notify` — в Telegram-карточке появятся
-  отдельные строки «Service» и «Src» (канал, откуда пришёл лид). Пока и без
-  этого всё видно в поле message.
+- Бэкенд-апгрейд (по желанию): в Telegram-карточку можно вывести
+  отдельными строками выбранный день и окно приезда. Сейчас они едут
+  внутри `message` строкой «When: Wed, Aug 12 · Afternoon (3 PM–6 PM)» —
+  всё видно, отдельные поля нужны только для отчётов. Правка в
+  `AI AGENT FOR TG/supabase/functions/submit-lead` + редеплой.
 
 ## Еженедельная рутина (30 минут)
 

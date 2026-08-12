@@ -6,9 +6,15 @@
 //
 // The payload contract with submit-lead is additive-only:
 //   name, phone, email, tv_size, wall_type, message, website (honeypot)
-// plus `service`, `area` and `attribution`. A submit-lead deployment that
+// plus `service`, `area`, `preferred_date`, `preferred_hour`,
+// `preferred_time` and `attribution`. A submit-lead deployment that
 // predates any of those keys simply ignores them — everything the quiz
 // collects is ALSO serialized into `message`, so no data is ever lost.
+//
+// `preferred_date` + `preferred_hour` are the pair the backend must store
+// for the availability lookup (GET on the same endpoint) to return that
+// slot as taken. Until that deployment lands, the quiz still works and
+// simply never marks anything booked.
 
 (function () {
   "use strict";
@@ -92,6 +98,12 @@
           message: data.message || "",
           service: data.service || "",
           area: data.area || "",
+          mount: data.mount || "",
+          details: data.details || "",
+          preferred_date: data.preferred_date || "",
+          preferred_hour: data.preferred_hour === 0 || data.preferred_hour
+            ? data.preferred_hour : "",
+          preferred_time: data.preferred_time || "",
           attribution: data.attribution || "",
           website: data.website || "" // honeypot — empty for real visitors
         })
